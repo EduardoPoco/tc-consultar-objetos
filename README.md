@@ -123,7 +123,9 @@ npm run build
 npx playwright test tests/e2e/screenshots.spec.ts
 ```
 
-A publicação está em `.github/workflows/pages.yml`. Corre em cada push para `main` e para ramos `cursor/*`, e também com **workflow_dispatch** (este botão no separador Actions fica disponível quando o fluxo está no ramo predefinido). O site é compilado com a base `/tc-consultar-objetos/` e publicado pelo GitHub Pages a partir do Actions. Nas definições do repositório, a origem do Pages tem de ser **GitHub Actions**.
+A publicação está em `.github/workflows/pages.yml`. Corre em cada push para `main` e para ramos `cursor/*`, e também com **workflow_dispatch**. O botão de execução manual no separador Actions só aparece quando o fluxo já está no ramo predefinido (`main`); até lá, um push para o ramo da extensão volta a lançar a publicação. O site é compilado com a base `/tc-consultar-objetos/`.
+
+Nas definições do repositório, **Settings → Pages → Build and deployment → Source** tem de ser **GitHub Actions**. Sem isso o fluxo falha com «Get Pages site failed» e o manifesto ainda não existe. Quem ativar o Pages pode ter de permitir o ramo `cursor/consultar-objetos-b8f8` em **Settings → Environments → github-pages → Deployment branches**, para a publicação deste ramo funcionar antes do merge. Depois de ativar, use **Re-run** no fluxo falhado. O token usado para abrir este pedido de integração não tem permissão de administração do repositório, por isso não consegue ligar o Pages sozinho.
 
 ## Versão
 
