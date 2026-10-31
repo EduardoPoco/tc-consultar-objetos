@@ -1,4 +1,4 @@
-import { toCsv } from "../domain/csv";
+import { buildInquiryTable, inquiryTableToCsv, sortInquiryTable } from "../domain/table";
 import { applyFabrication, buildDataset, type FabricationDataset, type SavedMapping, type SheetTable } from "../domain/fabric";
 import { planColors, type ColorScale, type LegendStop } from "../domain/palette";
 import { clearDataset, loadDataset, loadMappings, saveDataset, saveMappings } from "../domain/fabricStore";
@@ -16,6 +16,7 @@ import { loadSets, loadSettings, saveSets, saveSettings, upsertSet } from "../do
 import {
   APP_VERSION,
   MAX_OBJECTS,
+  TABLE_PAGE_SIZE,
   type ColumnSet,
   type InquiredObject,
   type LabelSettings,
@@ -52,6 +53,8 @@ interface UiState {
   colorProperty: string;
   colorScale: ColorScale;
   legend: LegendStop[];
+  tableSort: { index: number; direction: "asc" | "desc" } | null;
+  tablePage: number;
 }
 
 const TABS: Array<{ id: TabId; label: string }> = [
@@ -94,6 +97,8 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
     colorProperty: "",
     colorScale: "auto",
     legend: [],
+    tableSort: null,
+    tablePage: 0,
   };
   ui.projectId = await host.projectId();
   ui.dataset = loadDataset(localStorage, ui.projectId);
@@ -111,16 +116,22 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
   bind(root, host, ui);
   fillSettings(root, ui);
 
-  let selectionKey = keyOf(host);
+  let selectionKey = host.snapshot().selectionId;
+  let wasLoading = host.snapshot().loading;
   let labeling = false;
   let relabel = false;
 
   const sync = () => paint(root, host, ui);
   host.subscribe(() => {
-    const key = keyOf(host);
-    const changed = key !== selectionKey;
-    selectionKey = key;
-    if (changed && ui.labelsActive) void refreshLabels();
+    const snapshot = host.snapshot();
+    const selectionChanged = snapshot.selectionId !== selectionKey;
+    if (selectionChanged) {
+      selectionKey = snapshot.selectionId;
+      ui.tablePage = 0;
+    }
+    const finished = wasLoading && !snapshot.loading;
+    wasLoading = snapshot.loading;
+    if (!snapshot.loading && ui.labelsActive && (selectionChanged || finished)) void refreshLabels();
     else sync();
   });
   sync();
@@ -136,7 +147,7 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
       do {
         relabel = false;
         const snapshot = host.snapshot();
-        const objects = snapshot.objects.map((object) => applyFabrication(object, ui.dataset));
+        const objects = snapshot.objects.map((object) => applyFabrication(object, ui.dataset)).slice(0, ui.settings.maxLabels);
         const chosen = currentItems(ui, objects).filter((item) => ui.checked.has(item.key));
         const payloads = objects.flatMap((object) => {
           const text = buildLabelText(object, chosen, ui.settings);
@@ -193,14 +204,15 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
   }
 
   function onExport(): void {
-    const snapshot = host.snapshot();
-    const rows = visibleRows(ui, snapshot.objects);
-    if (snapshot.objects.length === 0 || rows.length === 0) {
+    const objects = host.snapshot().objects.map((object) => applyFabrication(object, ui.dataset));
+    const columns = visibleRows(ui, objects);
+    if (objects.length === 0 || columns.length === 0) {
       ui.feedback = "Nada para exportar. Selecione objetos e, se quiser, filtre as propriedades.";
       sync();
       return;
     }
-    downloadCsv(toCsv(snapshot.objects, rows, ui.settings.showUnits));
+    const table = presentedTable(objects, columns, ui);
+    downloadCsv(inquiryTableToCsv(table));
     ui.feedback = "CSV transferido. Separador «;» e codificação UTF-8, para o Excel em português.";
     sync();
   }
@@ -259,6 +271,18 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
         }
         return;
       }
+      if (action === "sort-table") {
+        const index = Number(target.closest<HTMLElement>("[data-col]")?.dataset.col);
+        if (Number.isFinite(index)) {
+          const current = state.tableSort;
+          state.tableSort = {
+            index,
+            direction: current?.index === index && current.direction === "asc" ? "desc" : "asc",
+          };
+          sync();
+        }
+        return;
+      }
       if (action === "sort") {
         state.sort = state.sort === "asc" ? "desc" : "asc";
         sync();
@@ -309,6 +333,15 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
       if (action === "save-mapping") onSaveMapping();
       if (action === "clear-import") onClearImport();
       if (action === "apply-colors") void onApplyColors();
+      if (action === "cancel-load") viewer.cancelLoad();
+      if (action === "table-page") {
+        const direction = Number(target.closest<HTMLElement>("[data-dir]")?.dataset.dir);
+        if (Number.isFinite(direction)) {
+          state.tablePage = Math.max(0, state.tablePage + direction);
+          sync();
+        }
+        return;
+      }
       if (action === "piece" && isDemoHost(viewer)) {
         const id = Number(target.closest<HTMLElement>("[data-runtime-id]")?.dataset.runtimeId);
         if (!Number.isFinite(id)) return;
@@ -344,12 +377,14 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
         if (state.labelsActive) void refreshLabels();
         return;
       }
-      if (target.id === "show-units" || target.id === "show-name" || target.id === "show-property") {
+      if (target.id === "show-units" || target.id === "show-name" || target.id === "show-property" || target.id === "max-labels") {
+        const maxLabels = Number(scope.querySelector<HTMLInputElement>("#max-labels")?.value);
         state.settings = {
           ...state.settings,
           showUnits: (scope.querySelector<HTMLInputElement>("#show-units")?.checked ?? true),
           showPropertyName: (scope.querySelector<HTMLInputElement>("#show-property")?.checked ?? false),
           showObjectName: (scope.querySelector<HTMLInputElement>("#show-name")?.checked ?? false),
+          maxLabels: Number.isFinite(maxLabels) && maxLabels >= 1 ? Math.round(maxLabels) : state.settings.maxLabels,
         };
         saveSettings(localStorage, state.settings);
         if (state.labelsActive) void refreshLabels();
@@ -489,11 +524,6 @@ function updateColors(root: HTMLElement, state: UiState): void {
   if (swatch) swatch.style.background = highlightColor;
 }
 
-function keyOf(host: ViewerHost): string {
-  const snapshot = host.snapshot();
-  return `${snapshot.totalSelected}|${snapshot.objects.map((object) => `${object.modelId}:${object.runtimeId}`).join(",")}`;
-}
-
 function currentItems(state: UiState, objects: InquiredObject[]): PropItem[] {
   const columnSet = state.activeSetName
     ? state.columnSets.find((item) => item.name === state.activeSetName)
@@ -515,7 +545,8 @@ function paint(root: HTMLElement, host: ViewerHost, state: UiState): void {
   const items = currentItems(state, objects);
   paintTabs(root, state.tab);
   paintBanner(root, snapshot.error, snapshot.connectionFailed);
-  paintWarning(root, snapshot.totalSelected, snapshot.objects.length);
+  paintWarning(root, snapshot.totalSelected, state.settings.maxLabels);
+  paintProgress(root, snapshot);
   paintSource(root, state, snapshot.objects.length);
   paintChecklist(root, items, state.checked, snapshot.loading, objects, host.mode);
   paintActions(root, state, snapshot.objects.length, snapshot.isolated, snapshot.labels.length);
@@ -587,14 +618,29 @@ function paintBanner(root: HTMLElement, error: string, failed: boolean): void {
   banner.innerHTML = `<p class="banner" role="alert">${escapeHtml(error)}${demoLink}</p>`;
 }
 
-function paintWarning(root: HTMLElement, total: number, kept: number): void {
+function paintWarning(root: HTMLElement, total: number, maxLabels: number): void {
   const slot = root.querySelector("#aviso");
   if (!slot) return;
-  if (total > kept) {
-    slot.innerHTML = `<p class="warning" role="alert">Foram selecionados ${total} objetos. A consulta está limitada a ${MAX_OBJECTS}; os restantes foram ignorados.</p>`;
+  if (total > maxLabels) {
+    slot.innerHTML = `<p class="warning" role="alert">Foram selecionados ${total} objetos. As etiquetas no modelo usam apenas os primeiros ${maxLabels}. A tabela inclui todos.</p>`;
   } else {
     slot.innerHTML = "";
   }
+}
+
+function paintProgress(root: HTMLElement, snapshot: { loading: boolean; loadedCount: number; totalSelected: number; cancelled: boolean; objects: unknown[] }): void {
+  const slot = root.querySelector("#progresso");
+  if (!slot) return;
+  if (snapshot.loading) {
+    slot.innerHTML = `<p class="progress" data-testid="progresso-leitura">A ler propriedades… ${snapshot.loadedCount} de ${snapshot.totalSelected}</p>
+      <button type="button" data-action="cancel-load" data-testid="cancelar-leitura">Cancelar</button>`;
+    return;
+  }
+  if (snapshot.cancelled) {
+    slot.innerHTML = `<p class="warning">Leitura cancelada. Foram lidos ${snapshot.objects.length} de ${snapshot.totalSelected} objetos. O total da tabela refere-se aos objetos lidos.</p>`;
+    return;
+  }
+  slot.innerHTML = "";
 }
 
 function paintSource(root: HTMLElement, state: UiState, objectCount: number): void {
@@ -672,6 +718,12 @@ function paintActions(root: HTMLElement, state: UiState, objectCount: number, is
   if (sort) sort.textContent = state.sort === "asc" ? "A–Z" : "Z–A";
 }
 
+function presentedTable(objects: InquiredObject[], columns: PropItem[], state: UiState) {
+  const table = buildInquiryTable(objects, columns, state.settings.showUnits);
+  if (!state.tableSort) return table;
+  return sortInquiryTable(table, state.tableSort.index, state.tableSort.direction);
+}
+
 function paintTable(root: HTMLElement, state: UiState, objects: InquiredObject[]): void {
   const head = root.querySelector("#table-head");
   const body = root.querySelector("#table-body");
@@ -682,29 +734,48 @@ function paintTable(root: HTMLElement, state: UiState, objects: InquiredObject[]
     head.innerHTML = "";
     body.innerHTML = "";
     table.hidden = true;
-    empty.textContent = "Selecione objetos para preencher a tabela. Cada objeto fica numa coluna.";
+    empty.textContent = "Selecione objetos para preencher a tabela. Cada peça fica numa linha.";
     return;
   }
-  const rows = visibleRows(state, objects);
-  table.hidden = false;
-  head.innerHTML = `<tr>
-    <th scope="col">Propriedade</th>
-    ${objects.map((object) => `<th scope="col" data-testid="coluna-objeto">${escapeHtml(object.title)}${object.className ? `<small>${escapeHtml(object.className)}</small>` : ""}</th>`).join("")}
-  </tr>`;
-  if (rows.length === 0) {
+  const columns = visibleRows(state, objects);
+  if (columns.length === 0) {
+    head.innerHTML = "";
     body.innerHTML = "";
+    table.hidden = true;
     empty.textContent = "Nenhuma propriedade corresponde à pesquisa.";
     return;
   }
-  empty.textContent = "";
-  body.innerHTML = rows.map((item) => `<tr>
-    <th scope="row">${escapeHtml(item.label)}${item.setName ? `<small>${escapeHtml(item.setName)}</small>` : ""}</th>
-    ${objects.map((object) => {
-      const property = findProperty(object.raw, item);
-      const text = property ? formatValue(property, state.settings.showUnits) : "—";
-      return `<td>${escapeHtml(text)}</td>`;
-    }).join("")}
-  </tr>`).join("");
+  const inquiry = presentedTable(objects, columns, state);
+  const pageCount = Math.max(1, Math.ceil(inquiry.rows.length / TABLE_PAGE_SIZE));
+  const page = Math.min(state.tablePage, pageCount - 1);
+  state.tablePage = page;
+  const start = page * TABLE_PAGE_SIZE;
+  const visible = inquiry.rows.slice(start, start + TABLE_PAGE_SIZE);
+  const arrow = (index: number) => state.tableSort?.index === index ? (state.tableSort.direction === "asc" ? " ↑" : " ↓") : "";
+  table.hidden = false;
+  empty.textContent = inquiry.rows.length > TABLE_PAGE_SIZE
+    ? `Página ${page + 1} de ${pageCount}. O total soma as ${inquiry.rows.length} peças, não só as linhas desta página.`
+    : "";
+  head.innerHTML = `<tr>
+    <th scope="col"><button type="button" data-action="sort-table" data-col="0">Peça${arrow(0)}</button></th>
+    ${inquiry.columns.map((column, index) => `<th scope="col"><button type="button" data-action="sort-table" data-col="${index + 1}">${escapeHtml(column.label)}${arrow(index + 1)}</button></th>`).join("")}
+  </tr>`;
+  body.innerHTML = `${visible.map((row) => `<tr data-testid="linha-objeto">
+    <th scope="row">${escapeHtml(row.label)}</th>
+    ${row.cells.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}
+  </tr>`).join("")}
+  <tr data-testid="linha-total" class="total-row">
+    <th scope="row">Total · ${escapeHtml(inquiry.totalLabel)}</th>
+    ${inquiry.totalCells.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}
+  </tr>`;
+  const pager = root.querySelector("#table-pager");
+  if (pager) {
+    pager.innerHTML = inquiry.rows.length <= TABLE_PAGE_SIZE ? "" : `<div class="pager">
+      <button type="button" data-action="table-page" data-dir="-1" ${page === 0 ? "disabled" : ""}>Anterior</button>
+      <span>${start + 1}–${Math.min(start + TABLE_PAGE_SIZE, inquiry.rows.length)} de ${inquiry.rows.length}</span>
+      <button type="button" data-action="table-page" data-dir="1" ${page >= pageCount - 1 ? "disabled" : ""}>Seguinte</button>
+    </div>`;
+  }
 }
 
 function paintSets(root: HTMLElement, state: UiState): void {
@@ -806,6 +877,8 @@ function fillSettings(root: HTMLElement, state: UiState): void {
   const propertyName = root.querySelector<HTMLInputElement>("#show-property");
   if (propertyName) propertyName.checked = state.settings.showPropertyName;
   if (name) name.checked = state.settings.showObjectName;
+  const maxLabels = root.querySelector<HTMLInputElement>("#max-labels");
+  if (maxLabels) maxLabels.value = String(state.settings.maxLabels);
   const layout = root.querySelector<HTMLInputElement>(`input[name="layout"][value="${state.settings.layout}"]`);
   if (layout) layout.checked = true;
   const swatch = root.querySelector<HTMLElement>("#highlight-swatch");
@@ -850,6 +923,7 @@ function shell(host: ViewerHost): string {
         ${TABS.map((tab) => `<button type="button" class="tab${tab.id === "consultar" ? " is-active" : ""}" role="tab" id="tab-${tab.id}" data-action="tab" data-tab="${tab.id}" aria-selected="${tab.id === "consultar"}" aria-controls="panel-${tab.id}">${tab.label}</button>`).join("")}
       </nav>
       <div id="aviso" data-testid="aviso"></div>
+      <div id="progresso"></div>
       <div id="panel-consultar" role="tabpanel" aria-labelledby="tab-consultar">
         <p id="source-line" class="source" data-testid="origem"></p>
         <div class="toolbar">
@@ -878,7 +952,8 @@ function shell(host: ViewerHost): string {
           </label>
           <button type="button" class="primary" id="export" data-action="export" data-testid="exportar">Exportar CSV</button>
         </div>
-        <p class="hint">Objetos lado a lado. O CSV usa separador «;» e BOM UTF-8, para abrir no Excel em português. Exporta as linhas visíveis.</p>
+        <p class="hint">Uma linha por peça e uma coluna por propriedade. A última linha soma todos os objetos selecionados. O CSV inclui o total. Clique no cabeçalho para ordenar.</p>
+        <div id="table-pager"></div>
         <div id="table-scroll" class="table-scroll">
           <table data-testid="tabela">
             <thead id="table-head"></thead>
@@ -915,6 +990,10 @@ function shell(host: ViewerHost): string {
         <label class="check standalone"><input id="show-units" data-testid="mostrar-unidades" type="checkbox" checked /> Mostrar unidades (mm, m², m³, kg, °)</label>
         <label class="check standalone"><input id="show-property" data-testid="mostrar-propriedade" type="checkbox" /> Mostrar o nome da propriedade na etiqueta</label>
         <label class="check standalone"><input id="show-name" data-testid="mostrar-nome" type="checkbox" /> Mostrar o nome do objeto na etiqueta</label>
+        <label class="field">Máximo de etiquetas no modelo
+          <input id="max-labels" data-testid="max-etiquetas" type="number" min="1" max="200" value="20" />
+        </label>
+        <p class="hint">Este limite aplica-se só às etiquetas. A tabela lê todos os objetos selecionados.</p>
         <p class="tip">Dica: depois de colocar as etiquetas, guarde uma Vista no menu Views do Trimble Connect.</p>
       </div>
       <div id="panel-conjuntos" role="tabpanel" aria-labelledby="tab-conjuntos" hidden>
@@ -962,7 +1041,7 @@ function shell(host: ViewerHost): string {
           <p>Extensão do visualizador 3D do Trimble Connect para consultar peças do modelo: etiquetas junto dos objetos, tabela comparativa e CSV para aprovisionamento.</p>
           <p>Inspirada no Inquire Objects da Construsoft, sem depender dessa licença. Os conjuntos de propriedades e os dados de fabrico ficam guardados apenas neste navegador.</p>
           <ul>
-            <li>No máximo ${MAX_OBJECTS} objetos por consulta.</li>
+            <li>As etiquetas no modelo usam, por omissão, os primeiros ${MAX_OBJECTS} objetos. Esse número altera-se em Definições. A tabela não tem limite.</li>
             <li>As unidades seguem a API: comprimentos em mm, áreas em m², volumes em m³, massas em kg.</li>
             <li>Fora do Trimble Connect abre um modelo de demonstração.</li>
           </ul>

@@ -11,6 +11,9 @@ test("mostra o painel vazio e pede para selecionar objetos", async ({ page }) =>
   await expect(page.getByTestId("origem")).toContainText("Aprovisionamento");
   await expect(page.getByText("Guarde uma Vista para as conservar.")).toBeVisible();
   await expect(page.getByTestId("mostrar-etiquetas")).toBeDisabled();
+  await page.getByRole("tab", { name: "Definições" }).click();
+  await expect(page.getByTestId("max-etiquetas")).toHaveValue("20");
+  await page.getByRole("tab", { name: "Consultar" }).click();
   await expect(page.getByTestId("modelo")).toBeVisible();
 });
 
@@ -28,7 +31,8 @@ test("Ctrl+clique acumula a seleção", async ({ page }) => {
   await page.getByRole("button", { name: "Pilar P1" }).click({ modifiers: ["Control"] });
   await expect(page.getByTestId("contagem")).toContainText("2 objetos na consulta");
   await page.getByRole("tab", { name: "Tabela" }).click();
-  await expect(page.getByTestId("coluna-objeto")).toHaveCount(2);
+  await expect(page.getByTestId("linha-objeto")).toHaveCount(2);
+  await expect(page.getByTestId("linha-total")).toContainText("2 peças");
 });
 
 test("coloca etiquetas na vertical e na horizontal, com ou sem unidades", async ({ page }) => {
@@ -63,8 +67,9 @@ test("filtra a tabela e exporta CSV compatível com o Excel", async ({ page }) =
   await page.getByRole("button", { name: "Pilar P1" }).click({ modifiers: ["Control"] });
   await page.getByRole("tab", { name: "Tabela" }).click();
   await page.getByTestId("pesquisa").fill("s275");
-  await expect(page.getByRole("row", { name: /Grau do material/ })).toBeVisible();
-  await expect(page.getByRole("row", { name: /Perfil/ })).toHaveCount(0);
+  await expect(page.getByRole("columnheader", { name: /Grau do material/ })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Perfil" })).toHaveCount(0);
+  await expect(page.getByTestId("linha-total")).toContainText("2 peças");
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByTestId("exportar").click();
@@ -73,8 +78,9 @@ test("filtra a tabela e exporta CSV compatível com o Excel", async ({ page }) =
   const path = await download.path();
   const csv = fs.readFileSync(path!, "utf8");
   expect(csv.charCodeAt(0)).toBe(0xfeff);
-  expect(csv).toContain("Propriedade;Viga V1;Pilar P1\r\n");
+  expect(csv).toContain("Peça;Grau do material\r\n");
   expect(csv).toContain("S275JR");
+  expect(csv).toContain("Total · 2 peças");
   expect(csv).not.toContain("HEA200");
 });
 
@@ -93,9 +99,12 @@ test("isola, pinta e repõe os objetos consultados", async ({ page }) => {
 test("avisa quando a seleção passa de 20 objetos", async ({ page }) => {
   await page.getByTestId("selecionar-muitos").click();
   await expect(page.getByTestId("aviso")).toContainText("25 objetos");
-  await expect(page.getByTestId("aviso")).toContainText("limitada a 20");
+  await expect(page.getByTestId("aviso")).toContainText("etiquetas");
+  await expect(page.getByTestId("aviso")).toContainText("tabela inclui todos");
+  await expect(page.getByTestId("aviso")).not.toContainText("consulta está limitada");
   await page.getByRole("tab", { name: "Tabela" }).click();
-  await expect(page.getByTestId("coluna-objeto")).toHaveCount(20);
+  await expect(page.getByTestId("linha-objeto")).toHaveCount(25);
+  await expect(page.getByTestId("linha-total")).toBeVisible();
 });
 
 test("guarda e aplica conjuntos de propriedades neste navegador", async ({ page }) => {

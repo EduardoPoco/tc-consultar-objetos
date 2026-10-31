@@ -15,6 +15,9 @@ export interface HostSnapshot {
   highlightColor: string | null;
   objectColors: Record<string, string>;
   loading: boolean;
+  loadedCount: number;
+  cancelled: boolean;
+  selectionId: number;
   error: string;
   connectionFailed: boolean;
 }
@@ -31,6 +34,7 @@ export interface ViewerHost {
   projectId(): Promise<string>;
   listAllObjects(): Promise<InquiredObject[]>;
   colorByObject(entries: Array<{ modelId: string; runtimeId: number; color: string }>): Promise<void>;
+  cancelLoad(): void;
 }
 
 export interface DemoHost extends ViewerHost {

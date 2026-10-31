@@ -18,11 +18,11 @@ O conjunto de colunas ativo da Tabela de dados aparece como lista. Enquanto não
 
 ### 2. Seleção e propriedades
 
-Selecione até 20 objetos. No modo de demonstração, clique na planta; Ctrl+clique adiciona à seleção. Com um único objeto, o valor de cada propriedade aparece à direita.
+No modo de demonstração, clique na planta; Ctrl+clique adiciona à seleção. Com um único objeto, o valor de cada propriedade aparece à direita.
 
 ![Viga V1 selecionada, com perfil HEA200, grau S275JR, comprimento e peso](docs/imagens/02-selecao-com-propriedades.png)
 
-Se selecionar mais de 20 objetos, a extensão avisa e consulta só os primeiros 20.
+Se selecionar muitos objetos, as etiquetas usam só os primeiros (20 por omissão, ajustável em Definições). A tabela e o total incluem todos.
 
 ### 3. Escolher o que mostrar
 
@@ -44,9 +44,9 @@ Dica: as etiquetas são marcações do visualizador. Guarde uma **Vista** (menu 
 
 ### 5. Tabela e CSV
 
-O separador **Tabela** põe os objetos lado a lado. A pesquisa filtra propriedades e valores, sem distinguir acentos. **Exportar CSV** grava as linhas visíveis num ficheiro com separador `;` e BOM UTF-8, para abrir no Excel em português. Os números vão com vírgula decimal, sem unidade, para se poderem somar.
+O separador **Tabela** põe cada peça numa linha e cada propriedade marcada numa coluna. A primeira coluna identifica a peça (nome e, se existir, a marca de conjunto). A última linha soma pesos, áreas e comprimentos de todos os objetos selecionados, com a unidade; nas colunas de texto mostra o número de peças. A pesquisa filtra as colunas. Um clique no cabeçalho ordena. Não há limite de objetos na tabela: as propriedades são lidas em lotes, com progresso e um botão para cancelar. **Exportar CSV** segue esta disposição, com a linha de total, separador `;` e BOM UTF-8.
 
-![Tabela filtrada por «peso», com a viga e o pilar lado a lado e o botão Exportar CSV](docs/imagens/05-tabela-pesquisa-csv.png)
+![Tabela filtrada por «peso», com uma linha por peça e o total em quilogramas](docs/imagens/05-tabela-pesquisa-csv.png)
 
 ### 6. Isolar e colorir
 

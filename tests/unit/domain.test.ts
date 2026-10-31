@@ -62,6 +62,7 @@ const settings: LabelSettings = {
   showUnits: true,
   showPropertyName: false,
   showObjectName: false,
+  maxLabels: 20,
 };
 
 function inquired(raw: RawObject = beam): InquiredObject {
@@ -183,9 +184,9 @@ describe("CSV", () => {
     ]);
     const csv = toCsv([object], items, true);
     expect(csv.startsWith("\uFEFF")).toBe(true);
-    expect(csv).toContain("Propriedade;Viga V1\r\n");
-    expect(csv).toContain("Perfil;HEA200\r\n");
-    expect(csv).toContain("Peso (kg);253,8\r\n");
+    expect(csv).toContain("Peça;Perfil;Peso\r\n");
+    expect(csv).toContain("Viga V1;HEA200;253,8 kg\r\n");
+    expect(csv).toContain("Total · 1 peça;;253,8 kg\r\n");
   });
 
   it("neutraliza fórmulas e escapa ponto e vírgula", () => {

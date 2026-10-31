@@ -1,4 +1,4 @@
-import { capSelection, toInquiredObject } from "../domain/properties";
+import { toInquiredObject } from "../domain/properties";
 import type { LabelPayload, TextLabel } from "../domain/types";
 import type { DemoHost, HostSnapshot } from "../host/types";
 import { DEMO_COLUMN_SETS, DEMO_MODEL_ID, demoPieces, findDemoEntry } from "./fixtures";
@@ -17,20 +17,19 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
   let highlightColor: string | null = null;
   let objectColors: Record<string, string> = {};
   let error = "";
+  let selectionId = 0;
 
   const notify = () => {
     for (const listener of listeners) listener();
   };
 
   const inquired = () => {
-    const refs = selected.map((runtimeId) => ({ modelId: DEMO_MODEL_ID, runtimeId }));
-    const capped = capSelection(refs);
-    const objects = capped.kept.flatMap((ref) => {
-      const entry = findDemoEntry(ref.runtimeId);
+    const objects = selected.flatMap((runtimeId) => {
+      const entry = findDemoEntry(runtimeId);
       if (!entry) return [];
       return [toInquiredObject(DEMO_MODEL_ID, entry.raw, entry.box)];
     });
-    return { objects, total: capped.total };
+    return { objects, total: selected.length };
   };
 
   const snapshot = (): HostSnapshot => {
@@ -44,6 +43,9 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       highlightColor,
       objectColors,
       loading: false,
+      loadedCount: current.objects.length,
+      cancelled: false,
+      selectionId,
       error,
       connectionFailed: false,
     };
@@ -85,6 +87,9 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       objectColors = {};
       notify();
     },
+    cancelLoad() {
+      return undefined;
+    },
     async colorByObject(entries) {
       objectColors = {};
       for (const entry of entries) objectColors[`${entry.modelId}:${entry.runtimeId}`] = entry.color;
@@ -103,6 +108,7 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       });
     },
     select(runtimeIds, how) {
+      selectionId += 1;
       if (how === "set") {
         selected = [...runtimeIds];
       } else if (how === "add") {
@@ -119,10 +125,12 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       notify();
     },
     selectMany() {
+      selectionId += 1;
       selected = [...demoPieces().map((piece) => piece.runtimeId), ...Array.from({ length: 17 }, (_, index) => 101 + index)];
       notify();
     },
     clearSelection() {
+      selectionId += 1;
       selected = [];
       notify();
     },

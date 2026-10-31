@@ -87,6 +87,7 @@ export interface LabelSettings {
   showUnits: boolean;
   showPropertyName: boolean;
   showObjectName: boolean;
+  maxLabels: number;
 }
 
 export interface NamedPropertySet {
@@ -123,6 +124,8 @@ export interface SelectionRef {
 }
 
 export const MAX_OBJECTS = 20;
+export const PROPERTY_BATCH = 80;
+export const TABLE_PAGE_SIZE = 100;
 
 export const STORAGE_KEYS = {
   sets: "tc-consultar-objetos:conjuntos",
@@ -137,6 +140,7 @@ export const DEFAULT_SETTINGS: LabelSettings = {
   showUnits: true,
   showPropertyName: false,
   showObjectName: false,
+  maxLabels: MAX_OBJECTS,
 };
 
 export const EXAMPLE_SET: NamedPropertySet = {

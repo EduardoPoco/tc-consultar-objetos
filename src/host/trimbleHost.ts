@@ -1,8 +1,8 @@
 import { connect } from "trimble-connect-workspace-api";
 import { hexToRgba } from "../domain/color";
 import { labelAnchor } from "../domain/labels";
-import { boxFromPosition, capSelection, flattenSelection, toInquiredObject } from "../domain/properties";
-import type { Box3, LabelPayload, SelectionGroup, TextLabel, Vector3 } from "../domain/types";
+import { boxFromPosition, flattenSelection, toInquiredObject } from "../domain/properties";
+import { PROPERTY_BATCH, type Box3, type LabelPayload, type SelectionGroup, type TextLabel, type Vector3 } from "../domain/types";
 import type { ColumnSetResult, HostSnapshot, ViewerHost } from "./types";
 
 interface WorkspaceLike {
@@ -64,6 +64,9 @@ const emptySnapshot = (): HostSnapshot => ({
   highlightColor: null,
   objectColors: {},
   loading: false,
+  loadedCount: 0,
+  cancelled: false,
+  selectionId: 0,
   error: "",
   connectionFailed: false,
 });
@@ -71,6 +74,8 @@ const emptySnapshot = (): HostSnapshot => ({
 export async function createTrimbleHost(): Promise<ViewerHost> {
   const listeners = new Set<() => void>();
   let ticket = 0;
+  let selectionId = 0;
+  let cancelFlag = false;
   let labelIds: number[] = [];
   let labels: TextLabel[] = [];
   let snapshot = { ...emptySnapshot(), loading: true };
@@ -100,18 +105,43 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
 
   async function applySelection(groups: SelectionGroup[]): Promise<void> {
     const mine = ++ticket;
-    const capped = capSelection(flattenSelection(groups));
-    snapshot = { ...snapshot, loading: true, error: "", totalSelected: capped.total };
+    cancelFlag = false;
+    const refs = flattenSelection(groups);
+    const id = ++selectionId;
+    const collected: ReturnType<typeof toInquiredObject>[] = [];
+    snapshot = {
+      ...snapshot,
+      loading: refs.length > 0,
+      loadedCount: 0,
+      totalSelected: refs.length,
+      objects: [],
+      cancelled: false,
+      selectionId: id,
+      error: "",
+    };
     notify();
+    if (refs.length === 0) return;
     try {
-      const objects = await loadObjects(api, capped.kept);
+      const outcome = await loadObjects(api, refs, (loaded, objects) => {
+        if (mine !== ticket) return;
+        snapshot = { ...snapshot, loading: true, loadedCount: loaded, objects };
+        notify();
+      }, () => mine !== ticket || cancelFlag);
       if (mine !== ticket) return;
-      labels = labels.filter((label) => objects.some((object) => object.modelId === label.modelId && object.runtimeId === label.runtimeId));
-      snapshot = { ...snapshot, loading: false, objects, totalSelected: capped.total, labels, error: "" };
+      labels = labels.filter((label) => outcome.objects.some((object) => object.modelId === label.modelId && object.runtimeId === label.runtimeId));
+      snapshot = {
+        ...snapshot,
+        loading: false,
+        cancelled: outcome.cancelled,
+        objects: outcome.objects,
+        loadedCount: outcome.objects.length,
+        labels,
+        error: "",
+      };
     } catch (error) {
       if (mine !== ticket) return;
       const message = error instanceof Error ? error.message : "Não foi possível ler as propriedades.";
-      snapshot = { ...snapshot, loading: false, objects: [], error: message };
+      snapshot = { ...snapshot, loading: false, objects: collected, error: message };
     }
     notify();
   }
@@ -133,7 +163,11 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
     },
     snapshot: () => snapshot,
     loadColumnSets,
+    cancelLoad() {
+      cancelFlag = true;
+    },
     async showLabels(payloads) {
+      payloads = await attachBoxes(api, payloads);
       if (labelIds.length > 0) {
         try {
           await api.markup.removeMarkups(labelIds);
@@ -226,9 +260,9 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
       const listed = await api.viewer.getObjects();
       const objects = [];
       for (const model of listed ?? []) {
-        const ids = (model.objects ?? []).map((object) => object.id).filter((id) => Number.isFinite(id)).slice(0, 3000);
-        for (let start = 0; start < ids.length; start += 200) {
-          const chunk = ids.slice(start, start + 200);
+        const ids = (model.objects ?? []).map((object) => object.id).filter((id) => Number.isFinite(id));
+        for (let start = 0; start < ids.length; start += PROPERTY_BATCH) {
+          const chunk = ids.slice(start, start + PROPERTY_BATCH);
           const properties = await api.viewer.getObjectProperties(model.modelId, chunk);
           for (const raw of properties) objects.push(toInquiredObject(model.modelId, raw, null));
         }
@@ -257,29 +291,58 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
 async function loadObjects(
   api: WorkspaceLike,
   refs: Array<{ modelId: string; runtimeId: number }>,
-) {
+  onBatch: (loaded: number, objects: ReturnType<typeof toInquiredObject>[]) => void,
+  shouldStop: () => boolean,
+): Promise<{ objects: ReturnType<typeof toInquiredObject>[]; cancelled: boolean }> {
   const byModel = new Map<string, number[]>();
   for (const ref of refs) {
     const ids = byModel.get(ref.modelId) ?? [];
     ids.push(ref.runtimeId);
     byModel.set(ref.modelId, ids);
   }
-  const found = new Map<string, ReturnType<typeof toInquiredObject>>();
+  const objects: ReturnType<typeof toInquiredObject>[] = [];
+  let loaded = 0;
   for (const [modelId, ids] of byModel) {
-    const properties = await api.viewer.getObjectProperties(modelId, ids);
-    let boxes: Array<{ id: number; boundingBox: Box3 }> = [];
-    try {
-      boxes = await api.viewer.getObjectBoundingBoxes(modelId, ids);
-    } catch {
-      boxes = [];
-    }
-    const boxById = new Map(boxes.map((box) => [box.id, box.boundingBox]));
-    for (const raw of properties) {
-      const box = boxById.get(raw.id) ?? (raw.position ? boxFromPosition(raw.position) : null);
-      found.set(`${modelId}:${raw.id}`, toInquiredObject(modelId, raw, box));
+    for (let start = 0; start < ids.length; start += PROPERTY_BATCH) {
+      if (shouldStop()) return { objects, cancelled: true };
+      const chunk = ids.slice(start, start + PROPERTY_BATCH);
+      const properties = await api.viewer.getObjectProperties(modelId, chunk);
+      const byId = new Map(properties.map((raw) => [raw.id, raw]));
+      for (const runtimeId of chunk) {
+        const raw = byId.get(runtimeId) ?? { id: runtimeId };
+        const box = raw.position ? boxFromPosition(raw.position) : null;
+        objects.push(toInquiredObject(modelId, raw, box));
+      }
+      loaded += chunk.length;
+      onBatch(loaded, objects.slice());
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
-  return refs.map((ref) => found.get(`${ref.modelId}:${ref.runtimeId}`) ?? toInquiredObject(ref.modelId, { id: ref.runtimeId }, null));
+  return { objects, cancelled: false };
+}
+
+async function attachBoxes(api: WorkspaceLike, payloads: LabelPayload[]): Promise<LabelPayload[]> {
+  const missing = payloads.filter((payload) => !payload.box);
+  if (missing.length === 0) return payloads;
+  const boxes = new Map<string, Box3>();
+  const byModel = new Map<string, number[]>();
+  for (const payload of missing) {
+    const ids = byModel.get(payload.modelId) ?? [];
+    ids.push(payload.runtimeId);
+    byModel.set(payload.modelId, ids);
+  }
+  for (const [modelId, ids] of byModel) {
+    try {
+      const found = await api.viewer.getObjectBoundingBoxes(modelId, ids);
+      for (const box of found) boxes.set(`${modelId}:${box.id}`, box.boundingBox);
+    } catch {
+      // Labels still use the object position when the box is unavailable.
+    }
+  }
+  return payloads.map((payload) => ({
+    ...payload,
+    box: payload.box ?? boxes.get(`${payload.modelId}:${payload.runtimeId}`) ?? null,
+  }));
 }
 
 function groupIds(objects: Array<{ modelId: string; runtimeId: number }>): Array<[string, number[]]> {
@@ -328,5 +391,6 @@ export function connectionFailureHost(message: string): ViewerHost {
     projectId: async () => "desligado",
     listAllObjects: async () => [],
     colorByObject: async () => undefined,
+    cancelLoad: () => undefined,
   };
 }

@@ -56,6 +56,7 @@ test("05 tabela com pesquisa e CSV", async ({ page }) => {
   await page.getByRole("tab", { name: "Tabela" }).click();
   await page.getByTestId("pesquisa").fill("peso");
   await expect(page.getByRole("cell", { name: /253,8 kg/ })).toBeVisible();
+  await expect(page.getByTestId("linha-total")).toContainText("417,6 kg");
   await shot(page, "05-tabela-pesquisa-csv.png");
 });
 
