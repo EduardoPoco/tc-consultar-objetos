@@ -1,3 +1,4 @@
+import type { ProjectFileItem } from "../domain/files";
 import type { ProjectDetails, ProjectUser } from "../domain/project";
 import { formatUser, locationLabel } from "../domain/project";
 
@@ -21,4 +22,16 @@ export function demoProject(options: DemoProjectOptions = {}): ProjectDetails {
 
 export function demoUser(): ProjectUser {
   return formatUser({ firstName: "Ana", lastName: "Martins", email: "ana.martins@exemplo.pt" });
+}
+
+const DEMO_FILES: ProjectFileItem[] = [
+  { id: "pasta-estrutura", name: "Estrutura", kind: "folder", model: false, versionId: "", parentId: "" },
+  { id: "arq", name: "Arquitetura.ifc", kind: "file", model: true, versionId: "versao-arq", parentId: "" },
+  { id: "notas", name: "Notas.pdf", kind: "file", model: false, versionId: "versao-notas", parentId: "" },
+  { id: "est", name: "Estrutura.ifc", kind: "file", model: true, versionId: "versao-est", parentId: "pasta-estrutura" },
+];
+
+export function demoFolder(folderId: string | null): ProjectFileItem[] {
+  const parent = folderId ?? "";
+  return DEMO_FILES.filter((item) => item.parentId === parent);
 }

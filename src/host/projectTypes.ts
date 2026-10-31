@@ -1,8 +1,17 @@
+import type { ProjectFileItem } from "../domain/files";
 import type { ProjectDetails, ProjectUser } from "../domain/project";
+
+export interface FolderListing {
+  items: ProjectFileItem[];
+  folderId: string;
+  note: string;
+}
 
 export interface ProjectPageSource {
   mode: "demo" | "trimble";
   load(): Promise<{ project: ProjectDetails; user: ProjectUser }>;
+  listFolder(folderId: string | null): Promise<FolderListing>;
+  openModel(item: ProjectFileItem): Promise<string>;
   activateMenu(command: string): Promise<void>;
   onCommand(listener: (command: string) => void): () => void;
 }

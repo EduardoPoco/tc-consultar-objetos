@@ -1,13 +1,17 @@
 import type { ProjectDetails, ProjectUser } from "../domain/project";
 import { formatUser, locationLabel } from "../domain/project";
-import { demoProject, demoUser } from "../demo/projectDemo";
+import { demoFolder, demoProject, demoUser } from "../demo/projectDemo";
 import { extensionIconUrl, type ProjectPageSource } from "./projectTypes";
+import { listProjectFolder } from "./projectFiles";
 import type { WorkspaceConnection } from "./workspaceConnection";
 
 const MENU = {
   title: "Consultar Objetos",
   command: "projeto",
-  subMenus: [{ command: "projeto", title: "Projeto" }],
+  subMenus: [
+    { command: "projeto", title: "Projeto" },
+    { command: "modelos", title: "Modelos" },
+  ],
 };
 
 export function createDemoProjectSource(name: string | null): ProjectPageSource {
@@ -15,6 +19,16 @@ export function createDemoProjectSource(name: string | null): ProjectPageSource 
     mode: "demo",
     async load() {
       return { project: demoProject({ name }), user: demoUser() };
+    },
+    async listFolder(folderId) {
+      return {
+        items: demoFolder(folderId),
+        folderId: folderId ?? "",
+        note: "Lista de demonstração. No Trimble Connect os ficheiros vêm da API do projeto, depois de um token de acesso.",
+      };
+    },
+    async openModel(item) {
+      return `No Trimble Connect, «${item.name}» abriria no visualizador 3D.`;
     },
     async activateMenu() {
       return undefined;
@@ -27,6 +41,7 @@ export function createDemoProjectSource(name: string | null): ProjectPageSource 
 
 export function createTrimbleProjectSource(connection: WorkspaceConnection): ProjectPageSource {
   const listeners = new Set<(command: string) => void>();
+  let details: ProjectDetails | null = null;
   connection.subscribe((event, data) => {
     if (event !== "extension.command") return;
     const command = commandFromEvent(data);
@@ -41,7 +56,7 @@ export function createTrimbleProjectSource(connection: WorkspaceConnection): Pro
         connection.api.project.getProject(),
         connection.api.user.getUser(),
       ]);
-      const details: ProjectDetails = {
+      details = {
         id: project.id,
         name: project.name?.trim() || "Projeto sem nome",
         location: project.location?.trim() ?? "",
@@ -51,6 +66,19 @@ export function createTrimbleProjectSource(connection: WorkspaceConnection): Pro
       const person: ProjectUser = formatUser(user);
       void registerMenu(connection);
       return { project: details, user: person };
+    },
+    async listFolder(folderId) {
+      if (!details) return { items: [], folderId: "", note: "O projeto ainda não foi lido." };
+      return listProjectFolder(connection, details.location, details.id, folderId);
+    },
+    async openModel(item) {
+      if (!details) return "O projeto ainda não foi lido.";
+      await connection.api.extension.goTo("3dviewer", {
+        projectId: details.id,
+        modelId: item.id,
+        versionId: item.versionId || undefined,
+      });
+      return `A abrir «${item.name}» no visualizador 3D.`;
     },
     async activateMenu(command) {
       try {

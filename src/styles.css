@@ -96,6 +96,11 @@ button { cursor: pointer; }
   font-size: 12px;
 }
 
+.file-table { width: 100%; border-collapse: collapse; margin-top: 12px; background: white; }
+.file-table th, .file-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.crumbs { color: var(--muted); font-size: 13px; }
+.project-page .warning { background: var(--warn); color: var(--warn-ink); padding: 10px 12px; border-radius: 8px; }
+
 .shell {
   display: flex;
   height: 100%;

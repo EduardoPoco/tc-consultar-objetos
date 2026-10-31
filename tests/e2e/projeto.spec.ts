@@ -10,3 +10,17 @@ test("mostra a informação do projeto de demonstração", async ({ page }) => {
   await expect(page.getByTestId("menu-projeto")).toContainText("Projeto");
   await expect(page.getByRole("tab", { name: "Consultar" })).toHaveCount(0);
 });
+
+test("lista pastas e abre um modelo de demonstração", async ({ page }) => {
+  await page.goto("/?projeto=1");
+  await page.getByRole("button", { name: "Modelos" }).click();
+  await expect(page.getByTestId("tabela-ficheiros")).toContainText("Arquitetura.ifc");
+  await expect(page.getByTestId("aviso-ficheiros")).toContainText("demonstração");
+  await page.getByRole("button", { name: "Abrir pasta" }).click();
+  await expect(page.getByTestId("caminho")).toContainText("Estrutura");
+  await expect(page.getByTestId("tabela-ficheiros")).toContainText("Estrutura.ifc");
+  await page.getByRole("button", { name: "Abrir no visualizador 3D" }).click();
+  await expect(page.getByTestId("aviso-modelo")).toContainText("visualizador 3D");
+  await page.getByTestId("subir-pasta").click();
+  await expect(page.getByTestId("tabela-ficheiros")).toContainText("Notas.pdf");
+});
