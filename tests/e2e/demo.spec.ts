@@ -20,11 +20,23 @@ test("mostra o painel vazio e pede para selecionar objetos", async ({ page }) =>
   await expect(page.getByTestId("modelo")).toBeVisible();
 });
 
+test("mostra os atributos de produto à parte dos conjuntos de propriedades", async ({ page }) => {
+  await page.getByRole("button", { name: "Viga V1" }).click();
+  const produto = page.locator(".check", { has: page.getByRole("checkbox", { name: "Produto / Nome" }) });
+  const identificacao = page.locator(".check", { has: page.getByRole("checkbox", { name: "Identificação / Nome" }) });
+  await expect(produto).toContainText("HEA200");
+  await expect(page.locator(".check", { has: page.getByRole("checkbox", { name: "Produto / Descrição" }) })).toContainText("Viga de aço laminado");
+  await expect(page.locator(".check", { has: page.getByRole("checkbox", { name: "Produto / Tipo" }) })).toContainText("Viga");
+  await expect(page.locator(".check", { has: page.getByRole("checkbox", { name: "Produto / Classe" }) })).toContainText("IfcBeam");
+  await expect(identificacao).toContainText("Viga V1");
+  await expect(page.locator(".check-meta").first()).toContainText("Produto /");
+});
+
 test("lê as propriedades do objeto selecionado", async ({ page }) => {
   await page.getByRole("button", { name: "Viga V1" }).click();
   await expect(page.getByTestId("contagem")).toContainText("1 objeto na consulta");
   await expect(page.getByRole("checkbox", { name: "Perfil / Nome" })).toBeVisible();
-  await expect(page.locator(".check-value", { hasText: "HEA200" })).toBeVisible();
+  await expect(page.locator(".check", { has: page.getByRole("checkbox", { name: "Perfil / Nome" }) })).toContainText("HEA200");
   await expect(page.locator(".check-value", { hasText: "253,8 kg" })).toBeVisible();
   await expect(page.locator(".check", { hasText: "Comprimento" })).toContainText("mm");
 });

@@ -22,7 +22,7 @@ test("01 painel sem seleção", async ({ page }) => {
 
 test("02 seleção com propriedades", async ({ page }) => {
   await page.getByRole("button", { name: "Viga V1" }).click();
-  await expect(page.locator(".check-value", { hasText: "HEA200" })).toBeVisible();
+  await expect(page.locator(".check", { has: page.getByRole("checkbox", { name: "Perfil / Nome" }) })).toContainText("HEA200");
   await shot(page, "02-selecao-com-propriedades.png");
 });
 

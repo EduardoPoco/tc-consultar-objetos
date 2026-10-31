@@ -50,7 +50,7 @@ const catalog: CatalogEntry[] = [
     {
       id: 1,
       class: "IfcColumn",
-      product: { name: "HEB180", objectType: "Pilar" },
+      product: { name: "HEB180", description: "Pilar de aço laminado", objectType: "Pilar" },
       properties: [
         { name: "Identificação", properties: [text("Nome", "Pilar P1"), text("Marca", "P1"), text("Conjunto", "ZSCA10-0"), text("Desenho", "3221.01-ZSCA10")] },
         { name: "Perfil", properties: [text("Nome", "HEB180"), length("Altura", 180), length("Largura", 180)] },
@@ -65,7 +65,7 @@ const catalog: CatalogEntry[] = [
     {
       id: 2,
       class: "IfcBeam",
-      product: { name: "HEA200", objectType: "Viga" },
+      product: { name: "HEA200", description: "Viga de aço laminado", objectType: "Viga" },
       properties: [
         { name: "Identificação", properties: [text("Nome", "Viga V1"), text("Marca", "V1"), text("Conjunto", "ZSCA11-0"), text("Desenho", "3221.01-ZSCA11")] },
         { name: "Perfil", properties: [text("Nome", "HEA200"), length("Altura", 190), length("Largura", 200)] },
@@ -80,7 +80,7 @@ const catalog: CatalogEntry[] = [
     {
       id: 3,
       class: "IfcColumn",
-      product: { name: "HEB180", objectType: "Pilar" },
+      product: { name: "HEB180", description: "Pilar de aço laminado", objectType: "Pilar" },
       properties: [
         { name: "Identificação", properties: [text("Nome", "Pilar P2"), text("Marca", "P2"), text("Conjunto", "ZSCA12-0"), text("Desenho", "3221.01-ZSCA12")] },
         { name: "Perfil", properties: [text("Nome", "HEB180"), length("Altura", 180), length("Largura", 180)] },
@@ -95,7 +95,7 @@ const catalog: CatalogEntry[] = [
     {
       id: 4,
       class: "IfcBeam",
-      product: { name: "HEA200", objectType: "Viga" },
+      product: { name: "HEA200", description: "Viga de aço laminado", objectType: "Viga" },
       properties: [
         { name: "Identificação", properties: [text("Nome", "Viga V2"), text("Marca", "V2"), text("Conjunto", "ZSCA13-0"), text("Desenho", "3221.01-ZSCA13")] },
         { name: "Perfil", properties: [text("Nome", "HEA200"), length("Altura", 190), length("Largura", 200)] },
@@ -110,7 +110,7 @@ const catalog: CatalogEntry[] = [
     {
       id: 5,
       class: "IfcColumn",
-      product: { name: "HEB180", objectType: "Pilar" },
+      product: { name: "HEB180", description: "Pilar de aço laminado", objectType: "Pilar" },
       properties: [
         { name: "Identificação", properties: [text("Nome", "Pilar P3"), text("Marca", "P3"), text("Conjunto", "ZSCA14-0"), text("Desenho", "3221.01-ZSCA14")] },
         { name: "Perfil", properties: [text("Nome", "HEB180"), length("Altura", 180), length("Largura", 180)] },
@@ -125,7 +125,7 @@ const catalog: CatalogEntry[] = [
     {
       id: 6,
       class: "IfcSlab",
-      product: { name: "Laje maciça", objectType: "Laje" },
+      product: { name: "Laje maciça", description: "Laje maciça de betão", objectType: "Laje" },
       properties: [
         { name: "Identificação", properties: [text("Nome", "Laje L1"), text("Marca", "L1"), text("Conjunto", "LAJE-L1"), text("Desenho", "Laje")] },
         { name: "Material", properties: [text("Tipo", "Betão"), text("Grau", "C30/37")] },
@@ -142,7 +142,7 @@ const catalog: CatalogEntry[] = [
     {
       id: 7,
       class: "IfcPlate",
-      product: { name: "Chapa 20 mm", objectType: "Chapa" },
+      product: { name: "Chapa 20 mm", description: "Chapa de aço", objectType: "Chapa" },
       properties: [
         { name: "Identificação", properties: [text("Nome", "Chapa CH1"), text("Marca", "CH1"), text("Conjunto", "ZSCA1-0"), text("Desenho", "3221.01-ZSCA1")] },
         { name: "Perfil", properties: [text("Nome", "PL20"), length("Altura", 20), length("Largura", 400)] },
@@ -157,7 +157,7 @@ const catalog: CatalogEntry[] = [
     {
       id: 8,
       class: "IfcRailing",
-      product: { name: "Guarda-corpos", objectType: "Guarda" },
+      product: { name: "Guarda-corpos", description: "Guarda-corpos tubular", objectType: "Guarda" },
       properties: [
         { name: "Identificação", properties: [text("Nome", "Guarda GC1"), text("Marca", "GC1"), text("Conjunto", "ZSCA2-0"), text("Desenho", "3221.01-ZSCA2")] },
         { name: "Perfil", properties: [text("Nome", "Tubo 48.3×3.2"), length("Altura", 1100), length("Largura", 48)] },
@@ -176,6 +176,7 @@ for (let index = 1; index <= 17; index += 1) {
     {
       id,
       class: "IfcDiscreteAccessory",
+      product: { name: "Cantoneira", description: "Peça extra de demonstração", objectType: "Acessório" },
       properties: [
         { name: "Identificação", properties: [text("Nome", `Peça extra ${String(index).padStart(2, "0")}`)] },
         { name: "Perfil", properties: [text("Nome", "L50x50x5"), length("Altura", 50), length("Largura", 50)] },

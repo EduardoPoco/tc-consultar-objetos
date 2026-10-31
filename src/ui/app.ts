@@ -1,4 +1,4 @@
-import { buildInquiryTable, inquiryTableToCsv, sortInquiryTable } from "../domain/table";
+import { buildInquiryTable, columnHeading, inquiryTableToCsv, sortInquiryTable } from "../domain/table";
 import { applyFabrication, buildDataset, type FabricationDataset, type SavedMapping, type SheetTable } from "../domain/fabric";
 import { planColors, type ColorScale, type LegendStop } from "../domain/palette";
 import { clearDataset, loadDataset, loadMappings, saveDataset, saveMappings } from "../domain/fabricStore";
@@ -820,7 +820,7 @@ function paintTable(root: HTMLElement, state: UiState, objects: InquiredObject[]
     : "";
   setHtml(head, `<tr>
     <th scope="col"><button type="button" data-action="sort-table" data-col="0">Peça${arrow(0)}</button></th>
-    ${inquiry.columns.map((column, index) => `<th scope="col"><button type="button" data-action="sort-table" data-col="${index + 1}">${escapeHtml(column.label)}${arrow(index + 1)}</button></th>`).join("")}
+    ${inquiry.columns.map((column, index) => `<th scope="col"><button type="button" data-action="sort-table" data-col="${index + 1}">${escapeHtml(columnHeading(column, inquiry.columns))}${arrow(index + 1)}</button></th>`).join("")}
   </tr>`);
   setHtml(body, `${visible.map((row) => `<tr data-testid="linha-objeto">
     <th scope="row">${escapeHtml(row.label)}</th>

@@ -18,7 +18,7 @@ Por omissão a lista usa as propriedades encontradas nos objetos. Em Definiçõe
 
 ### 2. Seleção e propriedades
 
-No modo de demonstração, clique na planta; Ctrl+clique adiciona à seleção. Com um único objeto, o valor de cada propriedade aparece à direita.
+No modo de demonstração, clique na planta; Ctrl+clique adiciona à seleção. Com um único objeto, o valor de cada propriedade aparece à direita. O grupo **Produto** (nome, descrição, tipo e classe) fica no topo: são os atributos que o Trimble Connect mostra fora dos conjuntos de propriedades. Um nome repetido noutro grupo continua a ser outra linha.
 
 ![Viga V1 selecionada, com perfil HEA200, grau S275JR, comprimento e peso](docs/imagens/02-selecao-com-propriedades.png)
 

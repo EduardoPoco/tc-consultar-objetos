@@ -135,8 +135,41 @@ describe("propriedades", () => {
 
   it("descobre propriedades e ordena em pt-PT", () => {
     const items = sortItems(discoverItems([inquired()]), "asc");
-    expect(items.map((item) => item.name)).toEqual(["Altura", "Comprimento", "Grau", "Nome", "Nome", "Peso"]);
+    expect(items.map((item) => item.key)).toEqual([
+      "Produto||Classe",
+      "Produto||Nome",
+      "Perfil||Altura",
+      "Quantidades||Comprimento",
+      "Material||Grau",
+      "Identificação||Nome",
+      "Perfil||Nome",
+      "Quantidades||Peso",
+    ]);
+    expect(findProperty(inquired().raw, items[1])?.value).toBe("HEA200");
+    expect(items.filter((item) => item.name === "Nome").map((item) => item.key)).toEqual([
+      "Produto||Nome",
+      "Identificação||Nome",
+      "Perfil||Nome",
+    ]);
     expect(filterItems(items, [inquired()], "s275", true).map((item) => item.key)).toEqual(["Material||Grau"]);
+  });
+
+  it("traz os atributos de produto que estão fora dos conjuntos", () => {
+    const object = toInquiredObject("m", {
+      id: 1,
+      class: "IfcColumn",
+      product: { name: "PT20", description: "  ", objectType: "Poteau", guid: "abc" },
+      properties: [{ name: "Produto", properties: [{ name: "Nota", type: PropertyType.StringValue, value: "existente" }] }],
+    }, null);
+    const items = discoverItems([object]);
+    expect(items.map((item) => item.key)).toEqual([
+      "Produto||Nota",
+      "Produto||Nome",
+      "Produto||Tipo",
+      "Produto||GUID",
+      "Produto||Classe",
+    ]);
+    expect(findProperty(object.raw, items[1])?.value).toBe("PT20");
   });
 
   it("compara conjuntos de chaves sem depender da ordem", () => {

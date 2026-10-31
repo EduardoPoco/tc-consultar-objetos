@@ -41,6 +41,7 @@ export interface Product {
   name?: string;
   description?: string;
   objectType?: string;
+  guid?: string;
 }
 
 /** Shape returned by viewer.getObjectProperties. */

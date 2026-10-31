@@ -174,8 +174,13 @@ export function sortInquiryTable(table: InquiryTable, column: number, direction:
   return { ...table, rows };
 }
 
+export function columnHeading(column: PropItem, columns: readonly PropItem[]): string {
+  const shared = columns.filter((item) => item.label === column.label).length > 1;
+  return shared && column.setName ? `${column.setName} / ${column.label}` : column.label;
+}
+
 export function inquiryTableToCsv(table: InquiryTable): string {
-  const header = ["Peça", ...table.columns.map((column) => column.label)];
+  const header = ["Peça", ...table.columns.map((column) => columnHeading(column, table.columns))];
   const lines = [header.map((cell) => csvCell(cell)).join(";")];
   for (const row of table.rows) {
     lines.push([csvCell(row.label), ...row.cells.map((cell) => csvCell(cell === "—" ? "" : cell))].join(";"));

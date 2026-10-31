@@ -1,6 +1,7 @@
 import { formatValue, normalizeSearch, unitFor } from "./format";
 import {
   MAX_OBJECTS,
+  PropertyType,
   type Box3,
   type ColumnDef,
   type ColumnSet,
@@ -15,6 +16,18 @@ import {
 
 const NAME_PROPS = new Set(["nome", "name", "marca", "mark", "tag"]);
 const PREFERRED_SETS = new Set(["identificação", "identificacao", "identity", "ifcroot"]);
+
+/** Attributes Trimble Connect shows above the property sets. */
+export const PRODUCT_SET_NAME = "Produto";
+
+const PRODUCT_LABELS: Record<string, string> = {
+  name: "Nome",
+  description: "Descrição",
+  objectType: "Tipo",
+  guid: "GUID",
+  globalId: "GUID",
+  ifcGuid: "GUID",
+};
 
 export function propertyKey(setName: string, name: string): string {
   return `${setName}||${name}`;
@@ -64,9 +77,14 @@ export function discoverItems(objects: InquiredObject[]): PropItem[] {
 }
 
 export function sortItems(items: PropItem[], direction: "asc" | "desc"): PropItem[] {
-  const sorted = [...items].sort((a, b) => a.label.localeCompare(b.label, "pt-PT", { sensitivity: "base" })
-    || a.key.localeCompare(b.key, "pt-PT"));
-  return direction === "desc" ? sorted.reverse() : sorted;
+  const sorted = [...items].sort((a, b) => {
+    const group = Number(a.setName !== PRODUCT_SET_NAME) - Number(b.setName !== PRODUCT_SET_NAME);
+    if (group !== 0) return group;
+    const label = a.label.localeCompare(b.label, "pt-PT", { sensitivity: "base" })
+      || a.key.localeCompare(b.key, "pt-PT");
+    return direction === "desc" ? -label : label;
+  });
+  return sorted;
 }
 
 export function findProperty(raw: RawObject, item: PropItem): Property | undefined {
@@ -111,14 +129,53 @@ export function objectTitle(raw: RawObject): string {
 }
 
 export function toInquiredObject(modelId: string, raw: RawObject, box: Box3 | null): InquiredObject {
+  const withProduct = includeProduct(raw);
   return {
     modelId,
     runtimeId: raw.id,
-    title: objectTitle(raw),
+    title: objectTitle(withProduct),
     className: raw.class ?? "",
-    raw,
+    raw: withProduct,
     box,
   };
+}
+
+function includeProduct(raw: RawObject): RawObject {
+  const product = productProperties(raw);
+  if (product.length === 0) return raw;
+  const sets = [...(raw.properties ?? [])];
+  const index = sets.findIndex((set) => (set.name ?? "") === PRODUCT_SET_NAME);
+  if (index < 0) {
+    return { ...raw, properties: [{ name: PRODUCT_SET_NAME, properties: product }, ...sets] };
+  }
+  const existing = sets[index].properties ?? [];
+  const names = new Set(existing.map((property) => property.name));
+  const merged = [...existing, ...product.filter((property) => !names.has(property.name))];
+  const set = { name: PRODUCT_SET_NAME, properties: merged };
+  return { ...raw, properties: [set, ...sets.filter((_, position) => position !== index)] };
+}
+
+function productProperties(raw: RawObject): Property[] {
+  const properties: Property[] = [];
+  const seen = new Set<string>();
+  const add = (name: string, value: unknown) => {
+    if (seen.has(name)) return;
+    if (typeof value === "string") {
+      if (!value.trim()) return;
+      seen.add(name);
+      properties.push({ name, value, type: PropertyType.StringValue });
+      return;
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      seen.add(name);
+      properties.push({ name, value, type: PropertyType.DoubleValue });
+    }
+  };
+  for (const [key, value] of Object.entries(raw.product ?? {})) {
+    add(PRODUCT_LABELS[key] ?? key, value);
+  }
+  add("Classe", raw.class);
+  return properties;
 }
 
 export function flattenSelection(groups: SelectionGroup[] | null | undefined): SelectionRef[] {
