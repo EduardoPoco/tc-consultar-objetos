@@ -108,6 +108,8 @@ button { cursor: pointer; }
 .report-link { font-size: 18px; font-weight: 650; }
 .report-url { word-break: break-all; background: white; padding: 10px; border-radius: 8px; font-family: ui-monospace, monospace; font-size: 12px; }
 .project-page .actions { display: flex; gap: 8px; margin: 8px 0; }
+.steps { padding-left: 1.2rem; }
+.steps li { margin: 8px 0; }
 .project-page .warning { background: var(--warn); color: var(--warn-ink); padding: 10px 12px; border-radius: 8px; }
 
 .shell {

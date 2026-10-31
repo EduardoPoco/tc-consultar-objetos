@@ -19,6 +19,7 @@ const SECTIONS = [
   { id: "modelos", label: "Modelos" },
   { id: "ligacoes", label: "Ligações" },
   { id: "relatorio", label: "Relatório" },
+  { id: "ajuda", label: "Como usar" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
@@ -261,9 +262,25 @@ function pageHtml(state: {
       ${state.section === "modelos" ? filesHtml(state.crumbs, state.files, state.filesNote, state.filesStatus) : ""}
       ${state.section === "ligacoes" ? linksHtml(state.links, state.linkDraft, state.linkMessage) : ""}
       ${state.section === "relatorio" && state.project ? reportHtml(state.project, state.report, state.manualJob, state.reportPreview, state.reportMessage) : ""}
+      ${state.section === "ajuda" ? helpHtml() : ""}
     </main>
     <footer class="panel-footer">${where} · v${APP_VERSION}</footer>
   </div>`;
+}
+
+function helpHtml(): string {
+  return `<section data-testid="seccao-ajuda">
+    <h2>Como usar no visualizador 3D</h2>
+    <ol class="steps">
+      <li>Nesta página, em <strong>Modelos</strong>, abra o ficheiro no visualizador 3D. Também pode abrir o modelo pelo Trimble Connect.</li>
+      <li>No visualizador, escolha a extensão <strong>Consultar Objetos</strong>.</li>
+      <li>Selecione as peças. A lista inclui as propriedades do modelo e o grupo <strong>Produto</strong> (nome, descrição, tipo e classe).</li>
+      <li>Marque o que quer ver e use <strong>Mostrar etiquetas</strong>. Não há limite: as etiquetas são criadas em lotes. <strong>Limpar etiquetas</strong> remove todas as desta extensão.</li>
+      <li>No separador <strong>Tabela</strong>, cada peça é uma linha e o total soma todas. <strong>Exportar CSV</strong> usa o mesmo desenho.</li>
+      <li>Em <strong>Cores</strong> pode pintar o modelo por uma propriedade. Guarde uma Vista para conservar as etiquetas.</li>
+    </ol>
+    <p class="muted">Fora do Trimble Connect, a página <a href="?demo=1">?demo=1</a> abre o painel com um modelo de demonstração.</p>
+  </section>`;
 }
 
 function resolvedJob(projectName: string, manualJob: string): string {

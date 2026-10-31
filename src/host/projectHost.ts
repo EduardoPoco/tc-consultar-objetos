@@ -13,6 +13,7 @@ const MENU = {
     { command: "modelos", title: "Modelos" },
     { command: "ligacoes", title: "Ligações" },
     { command: "relatorio", title: "Relatório" },
+    { command: "ajuda", title: "Como usar" },
   ],
 };
 
