@@ -13,16 +13,23 @@ import { APP_VERSION } from "../domain/types";
 import type { ProjectDetails, ProjectUser } from "../domain/project";
 import { diagnosticsHtml } from "../host/diagnostics";
 import type { ProjectPageSource } from "../host/projectTypes";
+import { FEATURES } from "../features";
 import { escapeHtml } from "./html";
 
-const SECTIONS = [
+const SECTION_DEFS = [
   { id: "projeto", label: "Projeto" },
   { id: "modelos", label: "Modelos" },
   { id: "ligacoes", label: "Ligações" },
   { id: "relatorio", label: "Relatório" },
   { id: "ajuda", label: "Como usar" },
 ] as const;
-type SectionId = (typeof SECTIONS)[number]["id"];
+type SectionId = (typeof SECTION_DEFS)[number]["id"];
+
+const SECTIONS = SECTION_DEFS.filter((item) => {
+  if (item.id === "modelos") return FEATURES.modelos;
+  if (item.id === "ligacoes") return FEATURES.ligacoes;
+  return true;
+});
 
 export async function startProjectPage(root: HTMLElement, source: ProjectPageSource): Promise<void> {
   let section: SectionId = "projeto";
@@ -274,7 +281,9 @@ function helpHtml(): string {
   return `<section data-testid="seccao-ajuda">
     <h2>Como usar no visualizador 3D</h2>
     <ol class="steps">
-      <li>Nesta página, em <strong>Modelos</strong>, abra o ficheiro no visualizador 3D. Também pode abrir o modelo pelo Trimble Connect.</li>
+      <li>${FEATURES.modelos
+        ? "Nesta página, em <strong>Modelos</strong>, abra o ficheiro no visualizador 3D. Também pode abrir o modelo pelo Trimble Connect."
+        : "Abra um modelo no visualizador 3D do Trimble Connect."}</li>
       <li>No visualizador, escolha a extensão <strong>Consultar Objetos</strong>.</li>
       <li>Selecione as peças. A lista inclui as propriedades do modelo e o grupo <strong>Produto</strong> (nome, descrição, tipo e classe).</li>
       <li>Marque o que quer ver e use <strong>Mostrar etiquetas</strong>. Não há limite: as etiquetas são criadas em lotes. <strong>Limpar etiquetas</strong> remove todas as desta extensão.</li>

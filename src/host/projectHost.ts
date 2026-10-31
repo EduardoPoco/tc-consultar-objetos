@@ -1,6 +1,7 @@
 import type { ProjectDetails, ProjectUser } from "../domain/project";
 import { formatUser, locationLabel } from "../domain/project";
 import { demoFolder, demoProject, demoUser } from "../demo/projectDemo";
+import { FEATURES } from "../features";
 import { extensionMenuIconUrl, type ProjectPageSource } from "./projectTypes";
 import { withTimeout } from "./hostChoice";
 import { listProjectFolder } from "./projectFiles";
@@ -16,8 +17,8 @@ export function projectMenu(icon: string) {
     command: "consultar-objetos",
     subMenus: [
       item("Projeto", "projeto"),
-      item("Modelos", "modelos"),
-      item("Ligações", "ligacoes"),
+      ...(FEATURES.modelos ? [item("Modelos", "modelos")] : []),
+      ...(FEATURES.ligacoes ? [item("Ligações", "ligacoes")] : []),
       item("Relatório", "relatorio"),
       item("Como usar", "ajuda"),
     ],

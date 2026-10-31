@@ -18,7 +18,7 @@ describe("escolha do anfitrião", () => {
     expect(menu.title).toBe("Consultar Objetos");
     expect(menu.command).toBe("consultar-objetos");
     expect(menu.icon.endsWith(".png")).toBe(true);
-    expect(menu.subMenus.map((item) => item.command)).toEqual(["projeto", "modelos", "ligacoes", "relatorio", "ajuda"]);
+    expect(menu.subMenus.map((item) => item.command)).toEqual(["projeto", "relatorio", "ajuda"]);
     expect(menu.subMenus.every((item) => item.title && item.icon === menu.icon)).toBe(true);
   });
 

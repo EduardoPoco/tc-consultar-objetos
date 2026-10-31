@@ -5,4 +5,6 @@
 export const FEATURES = {
   conjuntos: false,
   fabrico: false,
+  modelos: false,
+  ligacoes: false,
 } as const;

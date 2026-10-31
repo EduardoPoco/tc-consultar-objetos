@@ -8,29 +8,9 @@ test("mostra a informação do projeto de demonstração", async ({ page }) => {
   await expect(page.getByTestId("regiao-projeto")).toContainText("Europa");
   await expect(page.getByTestId("utilizador-projeto")).toContainText("Ana Martins");
   await expect(page.getByTestId("menu-projeto")).toContainText("Projeto");
+  await expect(page.getByRole("button", { name: "Modelos" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Ligações" })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Consultar" })).toHaveCount(0);
-});
-
-test("guarda, edita e remove ligações do projeto", async ({ page }) => {
-  await page.goto("/?projeto=1");
-  await page.getByRole("button", { name: "Ligações" }).click();
-  await page.getByTestId("ligacao-nome").fill("Portal da obra");
-  await page.getByTestId("ligacao-url").fill("nota");
-  await page.getByTestId("guardar-ligacao").click();
-  await expect(page.getByTestId("aviso-ligacao")).toContainText("http");
-  await page.getByTestId("ligacao-url").fill("https://exemplo.pt/obra");
-  await page.getByTestId("guardar-ligacao").click();
-  const link = page.getByRole("link", { name: "Portal da obra" });
-  await expect(link).toHaveAttribute("href", "https://exemplo.pt/obra");
-  await expect(link).toHaveAttribute("target", "_blank");
-  await page.getByRole("button", { name: "Editar" }).click();
-  await page.getByTestId("ligacao-nome").fill("Portal revisto");
-  await page.getByTestId("guardar-ligacao").click();
-  await page.reload();
-  await page.getByRole("button", { name: "Ligações" }).click();
-  await expect(page.getByRole("link", { name: "Portal revisto" })).toBeVisible();
-  await page.getByRole("button", { name: "Remover" }).click();
-  await expect(page.getByRole("link", { name: "Portal revisto" })).toHaveCount(0);
 });
 
 test("abre o relatório filtrado pela obra do nome do projeto", async ({ page }) => {
@@ -58,16 +38,3 @@ test("pede o número da obra quando o projeto não começa por OB", async ({ pag
   await expect(page.getByTestId("obra-detectada")).toContainText("3228");
 });
 
-test("lista pastas e abre um modelo de demonstração", async ({ page }) => {
-  await page.goto("/?projeto=1");
-  await page.getByRole("button", { name: "Modelos" }).click();
-  await expect(page.getByTestId("tabela-ficheiros")).toContainText("Arquitetura.ifc");
-  await expect(page.getByTestId("aviso-ficheiros")).toContainText("demonstração");
-  await page.getByRole("button", { name: "Abrir pasta" }).click();
-  await expect(page.getByTestId("caminho")).toContainText("Estrutura");
-  await expect(page.getByTestId("tabela-ficheiros")).toContainText("Estrutura.ifc");
-  await page.getByRole("button", { name: "Abrir no visualizador 3D" }).click();
-  await expect(page.getByTestId("aviso-modelo")).toContainText("visualizador 3D");
-  await page.getByTestId("subir-pasta").click();
-  await expect(page.getByTestId("tabela-ficheiros")).toContainText("Notas.pdf");
-});

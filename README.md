@@ -6,7 +6,7 @@ Funciona dentro do Trimble Connect, no menu do projeto e no visualizador 3D, e f
 
 Manifesto: <https://eduardopoco.github.io/tc-consultar-objetos/manifest.json>
 
-O manifesto declara `extensionType: ["project", "3dviewer"]`. No projeto, a extensão regista-se no menu da esquerda (`ui.setMenu`), com o ícone e os atalhos Projeto, Modelos, Ligações, Relatório e Como usar. No visualizador 3D o painel de consulta mantém-se.
+O manifesto declara `extensionType: ["project", "3dviewer"]`. No projeto, a extensão regista-se no menu da esquerda (`ui.setMenu`), com o ícone e os atalhos Projeto, Relatório e Como usar. Modelos e Ligações ficam no código, desligados. No visualizador 3D o painel de consulta mantém-se.
 
 A mesma página decide o contexto ao arrancar. `ui.setMenu` corre logo depois de `connect`, antes de qualquer token ou leitura de ficheiros, com título, comando, ícone PNG e submenus. O evento `extension.command` traz o comando em `data`. Se `extension.getHost` disser `3dviewer`, abre o painel 3D. A página do projeto abre quando o anfitrião diz `project` e o painel do visualizador (`ui.getUI`) não está presente. Se a deteção falhar, fica o painel 3D. O separador **Acerca** mostra o contexto detetado, a versão da API e os erros de menu.
 
@@ -75,20 +75,6 @@ Abra `?projeto=1` para ver a página sem um projeto Trimble Connect. O projeto d
 Nome, identificador, região e utilizador atual (`project.getProject` e `user.getUser`).
 
 ![Página do projeto com o nome OB3270, a região Europa e o utilizador de demonstração](docs/imagens/11-pagina-projeto.png)
-
-### Modelos e pastas
-
-A lista pede um token com `extension.requestPermission("accesstoken")` e lê a API do Trimble Connect da região do projeto (Europa, América do Norte ou Ásia). **Abrir no visualizador 3D** usa `extension.goTo("3dviewer")`.
-
-Se o token não chegar, a página explica que é preciso uma aplicação na Trimble Developer Console, com o endereço `https://eduardopoco.github.io/tc-consultar-objetos/` autorizado a ler os ficheiros do projeto. O resto da página não fica bloqueado. No modo de demonstração a lista é fictícia.
-
-![Pastas e modelos de demonstração, com atalho para o visualizador 3D](docs/imagens/12-modelos.png)
-
-### Ligações
-
-Nome e endereço, guardados neste navegador por projeto. Abrem num separador novo. Dá para adicionar, editar e remover.
-
-![Ligação «Portal da obra» pronta a abrir noutro separador](docs/imagens/13-ligacoes.png)
 
 ### Relatório de produção
 
@@ -160,7 +146,7 @@ npm run dev
 
 Abra <http://127.0.0.1:5173/?demo=1> para o visualizador e <http://127.0.0.1:5173/?projeto=1> para a página do projeto. `?projeto=1&nome=Armazem` simula um projeto sem número de obra. `?semTabela=1` simula a Tabela de dados indisponível. Dentro de um iframe, a página liga-se ao Trimble Connect e escolhe o painel 3D ou a página do projeto conforme `extension.getHost()`.
 
-Os separadores **Conjuntos** e **Fabrico** estão desligados em `src/features.ts` (`FEATURES.conjuntos` e `FEATURES.fabrico`). O código permanece; para os voltar a mostrar basta pôr o respetivo valor a `true`. Com os dois desligados, a ordem dos separadores é Consultar, Tabela, Cores, Definições, Acerca.
+Os separadores **Conjuntos** e **Fabrico** estão desligados em `src/features.ts` (`FEATURES.conjuntos` e `FEATURES.fabrico`). Na página do projeto, **Modelos** e **Ligações** estão desligados da mesma forma (`FEATURES.modelos` e `FEATURES.ligacoes`). O código permanece; para os voltar a mostrar basta pôr o respetivo valor a `true`. Com os dois separadores do visualizador desligados, a ordem é Consultar, Tabela, Cores, Definições, Acerca.
 
 ```bash
 npm test
