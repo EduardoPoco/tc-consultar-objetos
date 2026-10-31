@@ -54,35 +54,11 @@ O separador **Tabela** põe cada peça numa linha e cada propriedade marcada num
 
 ![Viga e dois pilares isolados a laranja e o resto da planta esbatido](docs/imagens/06-isolar-e-colorir.png)
 
-### 7. Conjuntos de propriedades
+### 7. Cores
 
-Em **Conjuntos**, guarde a lista marcada com um nome, por exemplo `Aço: perfil, material, peso`. **Aplicar** volta a marcar essas propriedades. **Eliminar** tira o conjunto deste navegador.
+No separador **Cores**, escolha uma propriedade do modelo, por exemplo o grau do material. As percentagens e as datas recebem um gradiente, do vermelho ao verde; os textos recebem uma cor por categoria. A legenda fica no painel. **Repor** devolve as cores do modelo.
 
-Os conjuntos ficam em `localStorage`, neste computador e neste endereço. Não são gravados no projeto do Trimble Connect.
-
-![Conjunto de aço em uso e conjunto de betão guardado](docs/imagens/07-conjuntos-de-propriedades.png)
-
-### 8. Importar o Excel de fabrico
-
-No separador **Fabrico**, escolha um `.xlsx` ou `.csv`. A linha de cabeçalho é detetada (na folha de produção de exemplo é a linha 8; as linhas anteriores são título, cliente e totais) e pode ser corrigida à mão. As colunas repetidas, como Data ou %, ficam com o nome do grupo que está por cima: `Corte · Data`, `Expedição · %`.
-
-A coluna chave (por exemplo **Conjunto**) liga cada linha à propriedade do modelo que escolher (no modo de demonstração, `Identificação / Conjunto`, com marcas como `ZSCA11-0`). As outras colunas mapeiam-se para um conjunto de propriedades, por omissão `Fabrico`. **Guardar mapeamento** memoriza esta correspondência neste navegador.
-
-![Mapeamento das colunas do Excel, com a chave Conjunto e a coluna Corte · Data](docs/imagens/08-mapeamento-colunas.png)
-
-**Aplicar importação** grava os valores e mostra o relatório: linhas com objeto, linhas sem objeto e objetos sem linha. Quando a mesma marca aparece em várias linhas, fica a linha de tipo Conjunto.
-
-![Relatório com 7 objetos ligados, linhas ZSCA99-0 e ZSCA15-0 por ligar e a laje sem linha](docs/imagens/09-relatorio-correspondencia.png)
-
-Uma célula de data com várias entradas (`17/09/2026 - 149` e `18/09/2026 - 13`) passa a ser a última data e a quantidade somada (`18/09/2026 · 162`). As percentagens entram como progresso da etapa.
-
-Estes dados **não são escritos no ficheiro do modelo**. Ficam neste navegador, separados por projeto, e passam a aparecer nas etiquetas, na tabela e nas cores como se fossem propriedades. Para os gravar de forma permanente no Trimble Connect seria preciso um token (`extension.requestPermission("accesstoken")`, entregue no evento `extension.accessToken`) e a API de property sets do Trimble Connect, em geral com uma aplicação registada na Developer Console. O visualizador não tem uma chamada para gravar propriedades no modelo, por isso esta versão não o faz.
-
-### 9. Cores segundo o fabrico
-
-No separador **Cores**, escolha uma propriedade — estado, máquina, processo, percentagem ou data de uma etapa. As percentagens e as datas recebem um gradiente, do vermelho ao verde; os textos recebem uma cor por categoria. A legenda fica no painel. **Repor** devolve as cores do modelo.
-
-![Modelo colorido pelo progresso de corte, com a legenda de 0% a 100%](docs/imagens/10-cores-legenda.png)
+![Modelo colorido pelo grau do material, com a legenda das categorias](docs/imagens/10-cores-legenda.png)
 
 ## Instalar no Trimble Connect
 
@@ -111,7 +87,7 @@ Para a lista seguir os seus presets, crie primeiro um conjunto de colunas na **T
 
 ## O que só se confirma dentro do Trimble Connect
 
-O modo de demonstração cobre o painel, a seleção, as etiquetas, a tabela, o CSV, o isolamento e os conjuntos. Estes pontos dependem do visualizador real e não ficam provados pelos testes automáticos:
+O modo de demonstração cobre o painel, a seleção, as etiquetas, a tabela, o CSV, o isolamento e as cores. Estes pontos dependem do visualizador real e não ficam provados pelos testes automáticos:
 
 - o carregamento do manifesto em **Apps & Capabilities** (plano, permissões e CORS visto pelo domínio do Trimble Connect);
 - o evento `viewer.onSelectionChanged` e `viewer.getObjectProperties` com um modelo IFC ou Tekla;
@@ -133,13 +109,15 @@ npm run dev
 
 Abra <http://127.0.0.1:5173/?demo=1>. `?semTabela=1` simula a Tabela de dados indisponível. Dentro de um iframe, a página tenta ligar-se ao Trimble Connect com `trimble-connect-workspace-api`; se a ligação falhar, o painel explica o erro e oferece o modo de demonstração.
 
+Os separadores **Conjuntos** e **Fabrico** estão desligados em `src/features.ts` (`FEATURES.conjuntos` e `FEATURES.fabrico`). O código permanece; para os voltar a mostrar basta pôr o respetivo valor a `true`. Com os dois desligados, a ordem dos separadores é Consultar, Tabela, Cores, Definições, Acerca.
+
 ```bash
 npm test
 npm run test:e2e
 npm run build
 ```
 
-`npm test` corre a formatação, o texto das etiquetas, a criação das marcações em lotes, o CSV e os conjuntos. `npm run test:e2e` abre o modo de demonstração no Chromium e percorre o painel. Para voltar a gerar as imagens de `docs/imagens/`:
+`npm test` corre a formatação, o texto das etiquetas, a criação das marcações em lotes, o CSV, os atributos de produto e a leitura da seleção. `npm run test:e2e` abre o modo de demonstração no Chromium e percorre o painel. Para voltar a gerar as imagens de `docs/imagens/`:
 
 ```bash
 npx playwright test tests/e2e/screenshots.spec.ts

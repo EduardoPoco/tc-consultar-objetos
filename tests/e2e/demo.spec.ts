@@ -155,26 +155,18 @@ test("coloca etiquetas em todos os objetos da seleção", async ({ page }) => {
   await expect(page.getByTestId("linha-total")).toBeVisible();
 });
 
-test("guarda e aplica conjuntos de propriedades neste navegador", async ({ page }) => {
+test("mostra os separadores por esta ordem, sem Conjuntos nem Fabrico", async ({ page }) => {
+  await expect(page.getByRole("tab")).toHaveText(["Consultar", "Tabela", "Cores", "Definições", "Acerca"]);
+  await expect(page.getByRole("tab", { name: "Conjuntos" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Fabrico" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Aço: perfil, material, peso" })).toHaveCount(0);
   await page.getByRole("button", { name: "Viga V1" }).click();
-  await page.getByRole("tab", { name: "Conjuntos" }).click();
-  await expect(page.getByRole("heading", { name: "Aço: perfil, material, peso" })).toBeVisible();
-  await page.getByRole("button", { name: "Aplicar" }).click();
-  await page.getByRole("tab", { name: "Consultar" }).click();
-  await expect(page.getByRole("checkbox", { name: "Perfil / Nome" })).toBeChecked();
-  await expect(page.getByRole("checkbox", { name: "Material / Grau" })).toBeChecked();
-  await expect(page.getByRole("checkbox", { name: "Quantidades / Peso" })).toBeChecked();
-  await expect(page.getByRole("checkbox", { name: "Identificação / Nome" })).not.toBeChecked();
-
-  await page.getByRole("tab", { name: "Conjuntos" }).click();
-  await page.getByTestId("nome-conjunto").fill("Betão: classe, volume");
-  await page.getByTestId("guardar-conjunto").click();
-  await expect(page.getByRole("heading", { name: "Betão: classe, volume" })).toBeVisible();
-
-  await page.reload();
-  await page.getByRole("tab", { name: "Conjuntos" }).click();
-  await expect(page.getByRole("heading", { name: "Aço: perfil, material, peso" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Betão: classe, volume" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Fabrico/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Cores" }).click();
+  await expect(page.getByTestId("propriedade-cor").locator("option").first()).toBeAttached();
+  const labels = await page.getByTestId("propriedade-cor").locator("option").allTextContents();
+  expect(labels.some((label) => label.includes("Fabrico"))).toBe(false);
+  expect(labels.some((label) => label.includes("Material / Grau"))).toBe(true);
 });
 
 test("usa as propriedades do modelo quando a tabela de dados não existe", async ({ page }) => {

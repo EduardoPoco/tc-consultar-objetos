@@ -67,46 +67,13 @@ test("06 isolar e colorir", async ({ page }) => {
   await shot(page, "06-isolar-e-colorir.png");
 });
 
-test("08 mapeamento de colunas", async ({ page }) => {
-  await page.getByRole("tab", { name: "Fabrico" }).click();
-  await page.getByTestId("ficheiro-fabrico").setInputFiles("tests/fixtures/fabrico-mini.xlsx");
-  await page.getByTestId("filtrar-colunas").fill("Corte");
-  await expect(page.getByTestId("tabela-mapeamento").getByText("Corte · Data", { exact: true })).toBeVisible();
-  await shot(page, "08-mapeamento-colunas.png");
-});
-
-test("09 relatório de correspondência", async ({ page }) => {
-  await page.getByRole("tab", { name: "Fabrico" }).click();
-  await page.getByTestId("ficheiro-fabrico").setInputFiles("tests/fixtures/fabrico-mini.xlsx");
-  await page.getByTestId("aplicar-importacao").click();
-  await expect(page.getByTestId("relatorio")).toContainText("Laje L1");
-  await shot(page, "09-relatorio-correspondencia.png");
-});
-
 test("10 cores com legenda", async ({ page }) => {
-  await page.getByRole("tab", { name: "Fabrico" }).click();
-  await page.getByTestId("ficheiro-fabrico").setInputFiles("tests/fixtures/fabrico-mini.xlsx");
-  await page.getByTestId("aplicar-importacao").click();
   await page.getByRole("tab", { name: "Cores" }).click();
-  await page.getByTestId("propriedade-cor").selectOption({ label: "Fabrico / Corte · %" });
+  await expect(page.getByTestId("propriedade-cor").locator("option", { hasText: "Material / Grau" })).toBeAttached();
+  await page.getByTestId("propriedade-cor").selectOption({ label: "Material / Grau" });
   await page.getByTestId("aplicar-cores").click();
-  await expect(page.getByTestId("legenda")).toContainText("100%");
+  await expect(page.getByTestId("legenda")).toContainText("S275JR");
+  await expect(page.getByTestId("legenda")).toContainText("S355");
   await expect(page.locator(".piece.is-colored")).toHaveCount(8);
   await shot(page, "10-cores-legenda.png");
-});
-
-test("07 conjuntos de propriedades", async ({ page }) => {
-  await page.getByRole("tab", { name: "Definições" }).click();
-  await page.getByTestId("conjunto-colunas").selectOption("");
-  await page.getByRole("tab", { name: "Consultar" }).click();
-  await page.getByRole("button", { name: "Laje L1" }).click();
-  await page.getByRole("checkbox", { name: "Material / Grau" }).check();
-  await page.getByRole("checkbox", { name: "Quantidades / Volume" }).check();
-  await page.getByRole("tab", { name: "Conjuntos" }).click();
-  await page.getByTestId("nome-conjunto").fill("Betão: classe, volume");
-  await page.getByTestId("guardar-conjunto").click();
-  await page.getByRole("button", { name: "Aplicar" }).first().click();
-  await expect(page.getByText("Em uso")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Betão: classe, volume" })).toBeVisible();
-  await shot(page, "07-conjuntos-de-propriedades.png");
 });

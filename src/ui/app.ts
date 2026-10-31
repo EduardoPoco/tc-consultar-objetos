@@ -29,6 +29,7 @@ import { isDemoHost } from "../host/types";
 import { fabricoDetailHtml, filterMappingRows, readFabricForm, reportHtml } from "./fabrico";
 import { escapeHtml, plural, setHtml } from "./html";
 import { PROGRESS_DELAY_MS } from "../host/selectionGate";
+import { FEATURES } from "../features";
 
 declare global {
   interface Window {
@@ -69,10 +70,10 @@ interface UiState {
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "consultar", label: "Consultar" },
   { id: "tabela", label: "Tabela" },
-  { id: "definicoes", label: "Definições" },
-  { id: "conjuntos", label: "Conjuntos" },
-  { id: "fabrico", label: "Fabrico" },
   { id: "cores", label: "Cores" },
+  { id: "definicoes", label: "Definições" },
+  ...(FEATURES.conjuntos ? [{ id: "conjuntos" as const, label: "Conjuntos" }] : []),
+  ...(FEATURES.fabrico ? [{ id: "fabrico" as const, label: "Fabrico" }] : []),
   { id: "acerca", label: "Acerca" },
 ];
 
@@ -110,7 +111,7 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
     tablePage: 0,
   };
   ui.projectId = await host.projectId();
-  ui.dataset = loadDataset(localStorage, ui.projectId);
+  ui.dataset = FEATURES.fabrico ? loadDataset(localStorage, ui.projectId) : null;
 
   const columnInfo = await host.loadColumnSets();
   if (columnInfo && columnInfo.sets.length > 0) {
@@ -966,6 +967,14 @@ function downloadCsv(content: string): void {
   URL.revokeObjectURL(url);
 }
 
+function storedLocally(): string {
+  const parts = [
+    FEATURES.conjuntos ? "os conjuntos de propriedades" : "",
+    FEATURES.fabrico ? "os dados de fabrico" : "",
+  ].filter(Boolean);
+  return parts.length === 0 ? "" : ` ${parts.join(" e ")} ficam guardados apenas neste navegador.`;
+}
+
 function shell(host: ViewerHost): string {
   const icon = `${import.meta.env.BASE_URL}icon.svg`;
   const stage = isDemoHost(host) ? demoStage(host.pieces()) : "";
@@ -1053,7 +1062,7 @@ function shell(host: ViewerHost): string {
         <p class="hint">As etiquetas são colocadas em todos os objetos selecionados. Numa seleção grande, o visualizador recebe as marcações em lotes e a colocação pode ser cancelada.</p>
         <p class="tip">Dica: depois de colocar as etiquetas, guarde uma Vista no menu Views do Trimble Connect.</p>
       </div>
-      <div id="panel-conjuntos" role="tabpanel" aria-labelledby="tab-conjuntos" hidden>
+      ${FEATURES.conjuntos ? `<div id="panel-conjuntos" role="tabpanel" aria-labelledby="tab-conjuntos" hidden>
         <p class="hint">Guarde a lista de propriedades marcadas com um nome. Fica neste navegador, não no projeto. Exemplo: «Aço: perfil, material, peso».</p>
         <label class="field">Nome do conjunto
           <span class="inline">
@@ -1062,8 +1071,8 @@ function shell(host: ViewerHost): string {
           </span>
         </label>
         <div id="sets-list" class="sets" data-testid="lista-conjuntos"></div>
-      </div>
-      <div id="panel-fabrico" role="tabpanel" aria-labelledby="tab-fabrico" hidden>
+      </div>` : ""}
+      ${FEATURES.fabrico ? `<div id="panel-fabrico" role="tabpanel" aria-labelledby="tab-fabrico" hidden>
         <p class="hint">Importe um Excel ou CSV de fabrico. A coluna chave liga cada linha a um objeto (por exemplo Conjunto). Os valores ficam neste navegador, por projeto, e aparecem nas etiquetas e na tabela. Não são gravados no ficheiro do modelo.</p>
         <label class="field">Ficheiro
           <input id="ficheiro-fabrico" data-testid="ficheiro-fabrico" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" />
@@ -1073,7 +1082,7 @@ function shell(host: ViewerHost): string {
         </label>
         <div id="fabrico-relatorio"></div>
         <div id="fabrico-mapa"></div>
-      </div>
+      </div>` : ""}
       <div id="panel-cores" role="tabpanel" aria-labelledby="tab-cores" hidden>
         <p class="hint">Pinte o modelo segundo uma propriedade. Percentagens e datas usam um gradiente, do vermelho ao verde; o resto usa uma cor por categoria.</p>
         <label class="field">Propriedade
@@ -1096,7 +1105,7 @@ function shell(host: ViewerHost): string {
         <div class="about">
           <p><strong>Consultar Objetos</strong> · versão ${APP_VERSION}</p>
           <p>Extensão do visualizador 3D do Trimble Connect para consultar peças do modelo: etiquetas junto dos objetos, tabela comparativa e CSV para aprovisionamento.</p>
-          <p>Inspirada no Inquire Objects da Construsoft, sem depender dessa licença. Os conjuntos de propriedades e os dados de fabrico ficam guardados apenas neste navegador.</p>
+          <p>Inspirada no Inquire Objects da Construsoft, sem depender dessa licença.${storedLocally()}</p>
           <ul>
             <li>As etiquetas são colocadas em todos os objetos selecionados, em lotes, com progresso e um botão para cancelar. Limpar etiquetas remove todas as que esta extensão criou.</li>
             <li>As unidades seguem a API: comprimentos em mm, áreas em m², volumes em m³, massas em kg.</li>
