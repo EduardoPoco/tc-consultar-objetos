@@ -16,7 +16,7 @@ import {
   sortItems,
   toInquiredObject,
 } from "../../src/domain/properties";
-import { loadSets, loadSettings, saveSets, upsertSet } from "../../src/domain/storage";
+import { loadColumnSetChoice, loadSets, loadSettings, saveColumnSetChoice, saveSets, upsertSet } from "../../src/domain/storage";
 import { PropertyType, type InquiredObject, type LabelSettings, type RawObject } from "../../src/domain/types";
 
 function memoryStore(initial?: Record<string, string>) {
@@ -232,6 +232,11 @@ describe("conjuntos guardados", () => {
     expect(legacy.showObjectName).toBe(false);
     expect(legacy.showPropertyName).toBe(false);
     expect(loadSettings(memoryStore({ "tc-consultar-objetos:definicoes": "{" })).labelColor).toBe("#ffe14a");
+    const memory = memoryStore();
+    expect(loadColumnSetChoice(memory)).toBeNull();
+    expect(loadColumnSetChoice(memoryStore({ "tc-consultar-objetos:conjunto-colunas": JSON.stringify("Default") }))).toBeNull();
+    saveColumnSetChoice(memory, "Aprovisionamento");
+    expect(loadColumnSetChoice(memory)).toBe("Aprovisionamento");
   });
 });
 

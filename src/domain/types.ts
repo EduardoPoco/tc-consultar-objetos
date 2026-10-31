@@ -130,6 +130,7 @@ export const TABLE_PAGE_SIZE = 100;
 export const STORAGE_KEYS = {
   sets: "tc-consultar-objetos:conjuntos",
   settings: "tc-consultar-objetos:definicoes",
+  columnSet: "tc-consultar-objetos:conjunto-colunas",
 } as const;
 
 export const DEFAULT_SETTINGS: LabelSettings = {

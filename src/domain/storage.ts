@@ -20,6 +20,29 @@ function isSet(value: unknown): value is NamedPropertySet {
     && set.keys.every((key) => typeof key === "string");
 }
 
+export function loadColumnSetChoice(store: KeyValueStore): string | null {
+  const raw = store.getItem(STORAGE_KEYS.columnSet);
+  if (raw == null) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      parsed
+      && typeof parsed === "object"
+      && (parsed as { explicit?: unknown }).explicit === true
+      && typeof (parsed as { name?: unknown }).name === "string"
+    ) {
+      return (parsed as { name: string }).name;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export function saveColumnSetChoice(store: KeyValueStore, name: string): void {
+  store.setItem(STORAGE_KEYS.columnSet, JSON.stringify({ explicit: true, name }));
+}
+
 export function loadSets(store: KeyValueStore): NamedPropertySet[] {
   const raw = store.getItem(STORAGE_KEYS.sets);
   if (raw == null) {

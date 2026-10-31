@@ -12,7 +12,7 @@ Abra o modelo no visualizador 3D e escolha **Consultar Objetos** nas extensões.
 
 ### 1. Painel sem seleção
 
-O conjunto de colunas ativo da Tabela de dados aparece como lista. Enquanto não houver seleção, os botões de etiquetas e de isolamento ficam inativos.
+Por omissão a lista usa as propriedades encontradas nos objetos. Em Definições pode escolher um conjunto de colunas da Tabela de dados; essa escolha fica gravada. Enquanto não houver seleção, os botões de etiquetas e de isolamento ficam inativos.
 
 ![Painel sem objetos selecionados, com a lista do conjunto Aprovisionamento e a planta do Pavilhão A](docs/imagens/01-painel-vazio.png)
 

@@ -12,7 +12,7 @@ import {
   sameKeys,
   sortItems,
 } from "../domain/properties";
-import { loadSets, loadSettings, saveSets, saveSettings, upsertSet } from "../domain/storage";
+import { loadColumnSetChoice, loadSets, loadSettings, saveColumnSetChoice, saveSets, saveSettings, upsertSet } from "../domain/storage";
 import {
   APP_VERSION,
   MAX_OBJECTS,
@@ -107,10 +107,11 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
   if (columnInfo && columnInfo.sets.length > 0) {
     ui.columnSets = columnInfo.sets;
     ui.dataTableAvailable = true;
-    ui.activeSetName = columnInfo.sets.some((set) => set.name === columnInfo.activeName)
-      ? columnInfo.activeName ?? ""
-      : columnInfo.sets[0].name;
   }
+  const savedColumnSet = loadColumnSetChoice(localStorage);
+  ui.activeSetName = savedColumnSet !== null && (savedColumnSet === "" || ui.columnSets.some((set) => set.name === savedColumnSet))
+    ? savedColumnSet
+    : "";
 
   root.innerHTML = shell(host);
   bind(root, host, ui);
@@ -317,8 +318,9 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
           } else {
             state.dataTableAvailable = info.sets.length > 0;
             state.columnSets = info.sets;
-            if (info.activeName && info.sets.some((set) => set.name === info.activeName)) {
-              state.activeSetName = info.activeName;
+            if (state.activeSetName && !info.sets.some((set) => set.name === state.activeSetName)) {
+              state.activeSetName = "";
+              saveColumnSetChoice(localStorage, "");
             }
             state.feedback = "Conjuntos de colunas atualizados.";
           }
@@ -362,6 +364,7 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
       }
       if (target.id === "column-set") {
         state.activeSetName = target.value;
+        saveColumnSetChoice(localStorage, state.activeSetName);
         sync();
         return;
       }
