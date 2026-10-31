@@ -1,5 +1,14 @@
 import type { ProjectFileItem } from "../domain/files";
 import { isHttpUrl, loadLinks, saveLinks, upsertLink, type ExternalLink } from "../domain/links";
+import {
+  buildReportUrl,
+  jobNumberFromName,
+  loadManualJob,
+  loadReportConfig,
+  saveManualJob,
+  saveReportConfig,
+  type ReportConfig,
+} from "../domain/report";
 import { APP_VERSION } from "../domain/types";
 import type { ProjectDetails, ProjectUser } from "../domain/project";
 import type { ProjectPageSource } from "../host/projectTypes";
@@ -9,6 +18,7 @@ const SECTIONS = [
   { id: "projeto", label: "Projeto" },
   { id: "modelos", label: "Modelos" },
   { id: "ligacoes", label: "Ligações" },
+  { id: "relatorio", label: "Relatório" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
@@ -25,6 +35,10 @@ export async function startProjectPage(root: HTMLElement, source: ProjectPageSou
   let links: ExternalLink[] = [];
   let linkDraft = { id: "", name: "", url: "" };
   let linkMessage = "";
+  let report = loadReportConfig(localStorage);
+  let manualJob = "";
+  let reportPreview = "";
+  let reportMessage = "";
 
   const paint = () => {
     root.innerHTML = pageHtml({
@@ -40,6 +54,10 @@ export async function startProjectPage(root: HTMLElement, source: ProjectPageSou
       links,
       linkDraft,
       linkMessage,
+      report,
+      manualJob,
+      reportPreview,
+      reportMessage,
     });
   };
 
@@ -88,6 +106,34 @@ export async function startProjectPage(root: HTMLElement, source: ProjectPageSou
       crumbs.pop();
       const previous = crumbs[crumbs.length - 1];
       void showFiles(previous?.id ?? null);
+      return;
+    }
+    const reportAction = target.closest<HTMLElement>("[data-report-action]")?.dataset.reportAction;
+    if (reportAction && project) {
+      if (reportAction === "save-job") {
+        manualJob = root.querySelector<HTMLInputElement>("#obra-manual")?.value.trim() ?? "";
+        if (!/^\d{4}$/.test(manualJob)) {
+          reportMessage = "O número da obra tem quatro dígitos.";
+          paint();
+          return;
+        }
+        saveManualJob(localStorage, project.id, manualJob);
+        reportMessage = "Número da obra guardado neste navegador.";
+        reportPreview = "";
+        paint();
+        return;
+      }
+      report = readReportForm(root, report);
+      if (reportAction === "save-config") {
+        saveReportConfig(localStorage, report);
+        reportMessage = "Configuração do relatório guardada neste navegador.";
+        paint();
+        return;
+      }
+      const job = resolvedJob(project.name, manualJob);
+      reportPreview = job ? buildReportUrl(report, job) : "";
+      reportMessage = job ? "" : "Indique o número da obra para gerar o endereço.";
+      paint();
       return;
     }
     const linkAction = target.closest<HTMLElement>("[data-link-action]")?.dataset.linkAction;
@@ -148,12 +194,29 @@ export async function startProjectPage(root: HTMLElement, source: ProjectPageSou
 
   paint();
   root.addEventListener("click", (event) => { void onClick(event); });
+  root.addEventListener("change", (event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.name !== "tipo-url") return;
+    const base = root.querySelector<HTMLInputElement>("#relatorio-base")?.value.trim() ?? "";
+    const parameter = root.querySelector<HTMLInputElement>("#relatorio-param")?.value.trim() || "NObra";
+    const previous = report.kind;
+    const kind = target.value === "reportServer" ? "reportServer" : "portal";
+    report = {
+      ...report,
+      kind,
+      parameter,
+      portalBase: previous === "portal" ? base : report.portalBase,
+      serverBase: previous === "reportServer" ? base : report.serverBase,
+    };
+    paint();
+  });
 
   try {
     const loaded = await source.load();
     project = loaded.project;
     user = loaded.user;
     links = loadLinks(localStorage, project.id);
+    manualJob = loadManualJob(localStorage, project.id);
   } catch (cause) {
     error = cause instanceof Error ? cause.message : "Não foi possível ler o projeto.";
   }
@@ -173,6 +236,10 @@ function pageHtml(state: {
   links: ExternalLink[];
   linkDraft: { id: string; name: string; url: string };
   linkMessage: string;
+  report: ReportConfig;
+  manualJob: string;
+  reportPreview: string;
+  reportMessage: string;
 }): string {
   const icon = `${import.meta.env.BASE_URL}icon.svg`;
   const where = state.mode === "demo" ? "Modo de demonstração" : "Ligado ao Trimble Connect";
@@ -193,9 +260,66 @@ function pageHtml(state: {
       ${state.section === "projeto" ? infoHtml(state.project, state.user) : ""}
       ${state.section === "modelos" ? filesHtml(state.crumbs, state.files, state.filesNote, state.filesStatus) : ""}
       ${state.section === "ligacoes" ? linksHtml(state.links, state.linkDraft, state.linkMessage) : ""}
+      ${state.section === "relatorio" && state.project ? reportHtml(state.project, state.report, state.manualJob, state.reportPreview, state.reportMessage) : ""}
     </main>
     <footer class="panel-footer">${where} · v${APP_VERSION}</footer>
   </div>`;
+}
+
+function resolvedJob(projectName: string, manualJob: string): string {
+  return jobNumberFromName(projectName) ?? manualJob;
+}
+
+function readReportForm(root: HTMLElement, current: ReportConfig): ReportConfig {
+  const selected = root.querySelector<HTMLInputElement>('input[name="tipo-url"]:checked')?.value;
+  const kind = selected === "reportServer" ? "reportServer" : "portal";
+  const base = root.querySelector<HTMLInputElement>("#relatorio-base")?.value ?? "";
+  const parameter = root.querySelector<HTMLInputElement>("#relatorio-param")?.value.trim() || "NObra";
+  return {
+    kind,
+    parameter,
+    portalBase: kind === "portal" ? base.trim() : current.portalBase,
+    serverBase: kind === "reportServer" ? base.trim() : current.serverBase,
+  };
+}
+
+function reportHtml(
+  project: ProjectDetails,
+  config: ReportConfig,
+  manualJob: string,
+  preview: string,
+  message: string,
+): string {
+  const detected = jobNumberFromName(project.name);
+  const job = detected ?? manualJob;
+  const href = job ? buildReportUrl(config, job) : "";
+  const base = config.kind === "reportServer" ? config.serverBase : config.portalBase;
+  return `<section data-testid="seccao-relatorio">
+    <h2>Relatório de produção</h2>
+    <p class="warning">O relatório está em HTTP, na rede interna. Esta extensão está em HTTPS, por isso o endereço abre num separador novo e só funciona na rede da empresa. Não pode ser mostrado dentro desta página.</p>
+    ${href ? `<p><a class="report-link" data-testid="atalho-relatorio" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Relatório de produção — Obra ${escapeHtml(job)}</a></p>` : `<p data-testid="atalho-relatorio">Relatório de produção — indique o número da obra.</p>`}
+    ${detected
+      ? `<p data-testid="obra-detectada">Nº da obra ${escapeHtml(detected)}, lido do nome do projeto.</p>`
+      : `<label class="field">Nº da obra
+          <input id="obra-manual" data-testid="obra-manual" type="text" inputmode="numeric" maxlength="4" value="${escapeHtml(manualJob)}" />
+        </label>
+        <button type="button" data-report-action="save-job" data-testid="guardar-obra">Guardar número</button>`}
+    <h3>Endereço</h3>
+    <label class="radio"><input type="radio" name="tipo-url" value="portal" ${config.kind === "portal" ? "checked" : ""} /> Portal</label>
+    <label class="radio"><input type="radio" name="tipo-url" value="reportServer" ${config.kind === "reportServer" ? "checked" : ""} /> ReportServer</label>
+    <label class="field">Endereço base
+      <input id="relatorio-base" data-testid="relatorio-base" type="text" value="${escapeHtml(base)}" />
+    </label>
+    <label class="field">Parâmetro Nº Obra
+      <input id="relatorio-param" data-testid="relatorio-param" type="text" value="${escapeHtml(config.parameter)}" />
+    </label>
+    <div class="actions">
+      <button type="button" class="primary" data-report-action="save-config" data-testid="guardar-relatorio">Guardar configuração</button>
+      <button type="button" data-report-action="test" data-testid="testar-relatorio">Testar</button>
+    </div>
+    ${message ? `<p class="feedback" data-testid="aviso-relatorio">${escapeHtml(message)}</p>` : ""}
+    ${preview ? `<p class="report-url" data-testid="url-relatorio">${escapeHtml(preview)}</p>` : `<p class="report-url" data-testid="url-relatorio" hidden></p>`}
+  </section>`;
 }
 
 function linksHtml(

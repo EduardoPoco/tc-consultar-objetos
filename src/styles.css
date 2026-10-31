@@ -105,6 +105,9 @@ button { cursor: pointer; }
 .project-page .field { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; font-size: 13px; }
 .project-page .field input, .project-page .field select { padding: 6px 8px; border: 1px solid #b7c6d2; border-radius: 6px; }
 .project-page .primary { background: var(--blue); color: white; border: 0; border-radius: 6px; padding: 8px 12px; }
+.report-link { font-size: 18px; font-weight: 650; }
+.report-url { word-break: break-all; background: white; padding: 10px; border-radius: 8px; font-family: ui-monospace, monospace; font-size: 12px; }
+.project-page .actions { display: flex; gap: 8px; margin: 8px 0; }
 .project-page .warning { background: var(--warn); color: var(--warn-ink); padding: 10px 12px; border-radius: 8px; }
 
 .shell {

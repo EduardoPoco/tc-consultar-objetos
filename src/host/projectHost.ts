@@ -12,6 +12,7 @@ const MENU = {
     { command: "projeto", title: "Projeto" },
     { command: "modelos", title: "Modelos" },
     { command: "ligacoes", title: "Ligações" },
+    { command: "relatorio", title: "Relatório" },
   ],
 };
 
