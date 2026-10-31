@@ -22,7 +22,7 @@ No modo de demonstração, clique na planta; Ctrl+clique adiciona à seleção. 
 
 ![Viga V1 selecionada, com perfil HEA200, grau S275JR, comprimento e peso](docs/imagens/02-selecao-com-propriedades.png)
 
-Se selecionar muitos objetos, as etiquetas usam só os primeiros (20 por omissão, ajustável em Definições). A tabela e o total incluem todos.
+A tabela, o total e as etiquetas incluem todos os objetos selecionados. Não há limite. Numa seleção grande, as propriedades e as etiquetas são pedidas ao visualizador em lotes, com progresso e um botão para cancelar, para o modelo não bloquear.
 
 ### 3. Escolher o que mostrar
 
@@ -34,11 +34,11 @@ A lista vem do conjunto de colunas da Tabela de dados (`dataTable.getColumnSets`
 
 ### 4. Etiquetas no modelo
 
-**Mostrar etiquetas** coloca, junto de cada objeto, só os valores das propriedades marcadas. Vários valores ficam na mesma linha, com o separador escolhido, ou um por linha. Em **Definições** pode incluir o nome da propriedade e o nome do objeto; as duas opções começam desligadas. A cor, as unidades (mm, m², m³, kg, °) e a posição da etiqueta também se ajustam aí.
+**Mostrar etiquetas** coloca, junto de cada objeto selecionado, só os valores das propriedades marcadas. Vários valores ficam na mesma linha, com o separador escolhido, ou um por linha. Em **Definições** pode incluir o nome da propriedade e o nome do objeto; as duas opções começam desligadas. A cor, as unidades (mm, m², m³, kg, °) e a posição da etiqueta também se ajustam aí. As marcações são criadas em lotes. Enquanto isso, o painel mostra o progresso e **Cancelar** interrompe a colocação.
 
 ![Definições das etiquetas e textos horizontais junto da viga e da laje](docs/imagens/04-etiquetas-no-modelo.png)
 
-**Limpar etiquetas** remove só as etiquetas criadas por esta extensão.
+**Limpar etiquetas** remove todas as etiquetas criadas por esta extensão, mesmo que a colocação tenha sido cancelada a meio. As outras marcações do visualizador mantêm-se.
 
 Dica: as etiquetas são marcações do visualizador. Guarde uma **Vista** (menu Views) para as conservar.
 
@@ -139,7 +139,7 @@ npm run test:e2e
 npm run build
 ```
 
-`npm test` corre a formatação, o limite de 20 objetos, o texto das etiquetas, o CSV e os conjuntos. `npm run test:e2e` abre o modo de demonstração no Chromium e percorre o painel. Para voltar a gerar as imagens de `docs/imagens/`:
+`npm test` corre a formatação, o texto das etiquetas, a criação das marcações em lotes, o CSV e os conjuntos. `npm run test:e2e` abre o modo de demonstração no Chromium e percorre o painel. Para voltar a gerar as imagens de `docs/imagens/`:
 
 ```bash
 npx playwright test tests/e2e/screenshots.spec.ts

@@ -62,7 +62,6 @@ const settings: LabelSettings = {
   showUnits: true,
   showPropertyName: false,
   showObjectName: false,
-  maxLabels: 20,
 };
 
 function inquired(raw: RawObject = beam): InquiredObject {

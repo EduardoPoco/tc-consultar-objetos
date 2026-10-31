@@ -15,7 +15,7 @@ test("mostra o painel vazio e pede para selecionar objetos", async ({ page }) =>
   await expect(page.getByText("Guarde uma Vista para as conservar.")).toBeVisible();
   await expect(page.getByTestId("mostrar-etiquetas")).toBeDisabled();
   await page.getByRole("tab", { name: "Definições" }).click();
-  await expect(page.getByTestId("max-etiquetas")).toHaveValue("20");
+  await expect(page.getByText("Máximo de etiquetas no modelo")).toHaveCount(0);
   await page.getByRole("tab", { name: "Consultar" }).click();
   await expect(page.getByTestId("modelo")).toBeVisible();
 });
@@ -99,12 +99,19 @@ test("isola, pinta e repõe os objetos consultados", async ({ page }) => {
   await expect(page.getByTestId("feedback")).toContainText("repostas");
 });
 
-test("avisa quando a seleção passa de 20 objetos", async ({ page }) => {
+test("coloca etiquetas em todos os objetos da seleção", async ({ page }) => {
   await page.getByTestId("selecionar-muitos").click();
-  await expect(page.getByTestId("aviso")).toContainText("25 objetos");
-  await expect(page.getByTestId("aviso")).toContainText("etiquetas");
-  await expect(page.getByTestId("aviso")).toContainText("tabela inclui todos");
-  await expect(page.getByTestId("aviso")).not.toContainText("consulta está limitada");
+  await expect(page.getByTestId("contagem")).toContainText("25 objetos");
+  await expect(page.getByTestId("aviso")).not.toContainText("primeiros");
+  await expect(page.getByTestId("aviso")).not.toContainText("etiquetas");
+  await expect(page.getByRole("checkbox", { name: "Perfil / Nome" })).toBeVisible();
+  await page.getByRole("checkbox", { name: "Perfil / Nome" }).check();
+  await page.getByTestId("mostrar-etiquetas").click();
+  await expect(page.getByTestId("feedback")).toContainText("25 objetos");
+  await expect(page.getByTestId("etiqueta")).toHaveCount(8);
+  await page.getByTestId("limpar-etiquetas").click();
+  await expect(page.getByTestId("etiqueta")).toHaveCount(0);
+  await expect(page.getByTestId("feedback")).toContainText("removidas");
   await page.getByRole("tab", { name: "Tabela" }).click();
   await expect(page.getByTestId("linha-objeto")).toHaveCount(25);
   await expect(page.getByTestId("linha-total")).toBeVisible();

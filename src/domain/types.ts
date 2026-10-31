@@ -87,7 +87,6 @@ export interface LabelSettings {
   showUnits: boolean;
   showPropertyName: boolean;
   showObjectName: boolean;
-  maxLabels: number;
 }
 
 export interface NamedPropertySet {
@@ -141,7 +140,6 @@ export const DEFAULT_SETTINGS: LabelSettings = {
   showUnits: true,
   showPropertyName: false,
   showObjectName: false,
-  maxLabels: MAX_OBJECTS,
 };
 
 export const EXAMPLE_SET: NamedPropertySet = {

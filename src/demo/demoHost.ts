@@ -34,10 +34,11 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
 
   const snapshot = (): HostSnapshot => {
     const current = inquired();
+    const visible = labels.filter((label) => current.objects.some((object) => object.runtimeId === label.runtimeId));
     return {
       objects: current.objects,
       totalSelected: current.total,
-      labels: labels.filter((label) => current.objects.some((object) => object.runtimeId === label.runtimeId)),
+      labels: visible,
       isolated,
       isolatedRuntimeIds,
       highlightColor,
@@ -45,6 +46,10 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       loading: false,
       loadedCount: current.objects.length,
       cancelled: false,
+      labeling: false,
+      labelsPlaced: visible.length,
+      labelsTotal: visible.length,
+      labelsCancelled: false,
       selectionId,
       error,
       connectionFailed: false,

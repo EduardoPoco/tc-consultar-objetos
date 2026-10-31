@@ -94,9 +94,6 @@ export function loadSettings(store: KeyValueStore): LabelSettings {
       showUnits: typeof value.showUnits === "boolean" ? value.showUnits : DEFAULT_SETTINGS.showUnits,
       showPropertyName,
       showObjectName,
-      maxLabels: typeof value.maxLabels === "number" && value.maxLabels >= 1
-        ? Math.min(500, Math.round(value.maxLabels))
-        : DEFAULT_SETTINGS.maxLabels,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

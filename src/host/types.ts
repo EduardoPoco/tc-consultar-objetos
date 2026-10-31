@@ -17,6 +17,10 @@ export interface HostSnapshot {
   loading: boolean;
   loadedCount: number;
   cancelled: boolean;
+  labeling: boolean;
+  labelsPlaced: number;
+  labelsTotal: number;
+  labelsCancelled: boolean;
   selectionId: number;
   error: string;
   connectionFailed: boolean;

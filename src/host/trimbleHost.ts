@@ -3,6 +3,7 @@ import { hexToRgba } from "../domain/color";
 import { labelAnchor } from "../domain/labels";
 import { boxFromPosition, flattenSelection, toInquiredObject } from "../domain/properties";
 import { PROPERTY_BATCH, type Box3, type LabelPayload, type SelectionGroup, type TextLabel, type Vector3 } from "../domain/types";
+import { addMarkupBatch, removeMarkupBatches } from "./labelBatches";
 import type { ColumnSetResult, HostSnapshot, ViewerHost } from "./types";
 
 interface WorkspaceLike {
@@ -37,6 +38,7 @@ interface WorkspaceLike {
       start: MarkupPick;
       end: MarkupPick;
     }>) => Promise<Array<{ id?: number; text?: string }>>;
+    getTextMarkups: () => Promise<Array<{ id?: number; text?: string }>>;
     removeMarkups: (ids: number[] | undefined) => Promise<void>;
   };
 }
@@ -66,6 +68,10 @@ const emptySnapshot = (): HostSnapshot => ({
   loading: false,
   loadedCount: 0,
   cancelled: false,
+  labeling: false,
+  labelsPlaced: 0,
+  labelsTotal: 0,
+  labelsCancelled: false,
   selectionId: 0,
   error: "",
   connectionFailed: false,
@@ -76,6 +82,10 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
   let ticket = 0;
   let selectionId = 0;
   let cancelFlag = false;
+  let labelJob = 0;
+  let activeLabelJob = 0;
+  let labelCancel = false;
+  let labelingActive = false;
   let labelIds: number[] = [];
   let labels: TextLabel[] = [];
   let snapshot = { ...emptySnapshot(), loading: true };
@@ -105,6 +115,8 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
 
   async function applySelection(groups: SelectionGroup[]): Promise<void> {
     const mine = ++ticket;
+    labelJob += 1;
+    labelCancel = false;
     cancelFlag = false;
     const refs = flattenSelection(groups);
     const id = ++selectionId;
@@ -116,6 +128,8 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
       totalSelected: refs.length,
       objects: [],
       cancelled: false,
+      labeling: false,
+      labelsCancelled: false,
       selectionId: id,
       error: "",
     };
@@ -165,41 +179,126 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
     loadColumnSets,
     cancelLoad() {
       cancelFlag = true;
+      if (labelingActive) labelCancel = true;
     },
     async showLabels(payloads) {
-      payloads = await attachBoxes(api, payloads);
-      if (labelIds.length > 0) {
-        try {
-          await api.markup.removeMarkups(labelIds);
-        } catch {
-          // The previous ids may already be gone after a view change.
-        }
-        labelIds = [];
-      }
-      if (payloads.length === 0) {
-        labels = [];
-        snapshot = { ...snapshot, labels };
+      const job = ++labelJob;
+      activeLabelJob = job;
+      labelCancel = false;
+      labelingActive = true;
+      const stop = (): "cancel" | "abort" | null => {
+        if (job !== labelJob) return "abort";
+        if (labelCancel) return "cancel";
+        return null;
+      };
+      const placed: LabelPayload[] = [];
+      const placedIds: number[] = [];
+      const publish = (labeling: boolean, cancelled: boolean) => {
+        if (job !== labelJob) return;
+        labels = placed.map((payload, index) => ({
+          id: placedIds[index] ?? index + 1,
+          modelId: payload.modelId,
+          runtimeId: payload.runtimeId,
+          text: payload.text,
+          color: payload.color,
+        }));
+        labelIds = placedIds.slice();
+        snapshot = {
+          ...snapshot,
+          labels,
+          labeling,
+          labelsPlaced: placed.length,
+          labelsTotal: payloads.length,
+          labelsCancelled: cancelled,
+          error: "",
+        };
         notify();
-        return;
+      };
+      try {
+        const previous = labelIds.slice();
+        labelIds = [];
+        if (previous.length > 0) await removeMarkupBatches(api.markup, previous, PROPERTY_BATCH);
+        if (stop() === "abort") return;
+        if (payloads.length === 0 || stop() === "cancel") {
+          publish(false, stop() === "cancel");
+          return;
+        }
+        publish(true, false);
+        for (let start = 0; start < payloads.length; start += PROPERTY_BATCH) {
+          const why = stop();
+          if (why === "abort") {
+            await removeMarkupBatches(api.markup, placedIds, PROPERTY_BATCH);
+            return;
+          }
+          if (why === "cancel") {
+            publish(false, true);
+            return;
+          }
+          const chunk = await attachBoxes(api, payloads.slice(start, start + PROPERTY_BATCH));
+          if (stop() === "abort") {
+            await removeMarkupBatches(api.markup, placedIds, PROPERTY_BATCH);
+            return;
+          }
+          if (stop() === "cancel") {
+            publish(false, true);
+            return;
+          }
+          const ids = await addMarkupBatch(api.markup, chunk, toMarkup);
+          if (job !== labelJob) {
+            await removeMarkupBatches(api.markup, [...placedIds, ...ids], PROPERTY_BATCH);
+            return;
+          }
+          placed.push(...chunk);
+          placedIds.push(...ids);
+          publish(true, false);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        publish(false, labelCancel && placed.length < payloads.length);
+      } catch (error) {
+        if (job !== labelJob) {
+          await removeMarkupBatches(api.markup, placedIds, PROPERTY_BATCH);
+          return;
+        }
+        const message = error instanceof Error ? error.message : "Não foi possível criar as etiquetas.";
+        labels = placed.map((payload, index) => ({
+          id: placedIds[index] ?? index + 1,
+          modelId: payload.modelId,
+          runtimeId: payload.runtimeId,
+          text: payload.text,
+          color: payload.color,
+        }));
+        labelIds = placedIds.slice();
+        snapshot = {
+          ...snapshot,
+          labels,
+          labeling: false,
+          labelsPlaced: placed.length,
+          labelsTotal: payloads.length,
+          error: message,
+        };
+        notify();
+        throw error;
+      } finally {
+        if (activeLabelJob === job) labelingActive = false;
       }
-      const created = await api.markup.addTextMarkup(payloads.map(toMarkup));
-      labelIds = created.flatMap((markup) => (typeof markup.id === "number" ? [markup.id] : []));
-      labels = payloads.map((payload, index) => ({
-        id: labelIds[index] ?? index + 1,
-        modelId: payload.modelId,
-        runtimeId: payload.runtimeId,
-        text: payload.text,
-        color: payload.color,
-      }));
-      snapshot = { ...snapshot, labels, error: "" };
-      notify();
     },
     async clearLabels() {
-      if (labelIds.length > 0) await api.markup.removeMarkups(labelIds);
+      labelJob += 1;
+      labelCancel = true;
+      labelingActive = false;
+      const ids = labelIds.slice();
       labelIds = [];
       labels = [];
-      snapshot = { ...snapshot, labels };
+      snapshot = {
+        ...snapshot,
+        labels,
+        labeling: false,
+        labelsPlaced: 0,
+        labelsTotal: 0,
+        labelsCancelled: false,
+      };
       notify();
+      if (ids.length > 0) await removeMarkupBatches(api.markup, ids, PROPERTY_BATCH);
     },
     async isolate(objects, color) {
       const groups = groupIds(objects);

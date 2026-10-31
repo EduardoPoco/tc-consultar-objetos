@@ -15,7 +15,6 @@ import {
 import { loadColumnSetChoice, loadSets, loadSettings, saveColumnSetChoice, saveSets, saveSettings, upsertSet } from "../domain/storage";
 import {
   APP_VERSION,
-  MAX_OBJECTS,
   TABLE_PAGE_SIZE,
   type ColumnSet,
   type InquiredObject,
@@ -147,8 +146,9 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
     try {
       do {
         relabel = false;
+        if (!ui.labelsActive) break;
         const snapshot = host.snapshot();
-        const objects = snapshot.objects.map((object) => applyFabrication(object, ui.dataset)).slice(0, ui.settings.maxLabels);
+        const objects = snapshot.objects.map((object) => applyFabrication(object, ui.dataset));
         const chosen = currentItems(ui, objects).filter((item) => ui.checked.has(item.key));
         const payloads = objects.flatMap((object) => {
           const text = buildLabelText(object, chosen, ui.settings);
@@ -163,8 +163,14 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
           }];
         });
         await host.showLabels(payloads);
+        if (!ui.labelsActive) break;
+        const placed = host.snapshot();
         if (payloads.length === 0) {
           ui.feedback = "Marque propriedades e selecione objetos para criar etiquetas.";
+        } else if (placed.labelsCancelled) {
+          ui.feedback = `Colocação cancelada. Foram colocadas etiquetas em ${plural(placed.labels.length, "objeto", "objetos")} de ${payloads.length}.`;
+        } else {
+          ui.feedback = `Etiquetas colocadas em ${plural(placed.labels.length, "objeto", "objetos")}. Guarde uma Vista no visualizador para as conservar.`;
         }
       } while (relabel && ui.labelsActive);
     } catch (error) {
@@ -177,12 +183,13 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
 
   async function onShowLabels(): Promise<void> {
     ui.labelsActive = true;
-    ui.feedback = "Etiquetas colocadas junto dos objetos. Guarde uma Vista no visualizador para as conservar.";
+    ui.feedback = "A colocar etiquetas…";
     await refreshLabels();
   }
 
   async function onClearLabels(): Promise<void> {
     ui.labelsActive = false;
+    relabel = false;
     await host.clearLabels();
     ui.feedback = "Etiquetas removidas. As outras marcações do visualizador mantêm-se.";
     sync();
@@ -380,14 +387,12 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
         if (state.labelsActive) void refreshLabels();
         return;
       }
-      if (target.id === "show-units" || target.id === "show-name" || target.id === "show-property" || target.id === "max-labels") {
-        const maxLabels = Number(scope.querySelector<HTMLInputElement>("#max-labels")?.value);
+      if (target.id === "show-units" || target.id === "show-name" || target.id === "show-property") {
         state.settings = {
           ...state.settings,
           showUnits: (scope.querySelector<HTMLInputElement>("#show-units")?.checked ?? true),
           showPropertyName: (scope.querySelector<HTMLInputElement>("#show-property")?.checked ?? false),
           showObjectName: (scope.querySelector<HTMLInputElement>("#show-name")?.checked ?? false),
-          maxLabels: Number.isFinite(maxLabels) && maxLabels >= 1 ? Math.round(maxLabels) : state.settings.maxLabels,
         };
         saveSettings(localStorage, state.settings);
         if (state.labelsActive) void refreshLabels();
@@ -548,7 +553,6 @@ function paint(root: HTMLElement, host: ViewerHost, state: UiState): void {
   const items = currentItems(state, objects);
   paintTabs(root, state.tab);
   paintBanner(root, snapshot.error, snapshot.connectionFailed);
-  paintWarning(root, snapshot.totalSelected, state.settings.maxLabels);
   paintProgress(root, snapshot);
   paintSource(root, state, snapshot.objects.length);
   paintChecklist(root, items, state.checked, snapshot.loading, objects, host.mode);
@@ -621,17 +625,17 @@ function paintBanner(root: HTMLElement, error: string, failed: boolean): void {
   banner.innerHTML = `<p class="banner" role="alert">${escapeHtml(error)}${demoLink}</p>`;
 }
 
-function paintWarning(root: HTMLElement, total: number, maxLabels: number): void {
-  const slot = root.querySelector("#aviso");
-  if (!slot) return;
-  if (total > maxLabels) {
-    slot.innerHTML = `<p class="warning" role="alert">Foram selecionados ${total} objetos. As etiquetas no modelo usam apenas os primeiros ${maxLabels}. A tabela inclui todos.</p>`;
-  } else {
-    slot.innerHTML = "";
-  }
-}
-
-function paintProgress(root: HTMLElement, snapshot: { loading: boolean; loadedCount: number; totalSelected: number; cancelled: boolean; objects: unknown[] }): void {
+function paintProgress(root: HTMLElement, snapshot: {
+  loading: boolean;
+  loadedCount: number;
+  totalSelected: number;
+  cancelled: boolean;
+  objects: unknown[];
+  labeling: boolean;
+  labelsPlaced: number;
+  labelsTotal: number;
+  labelsCancelled: boolean;
+}): void {
   const slot = root.querySelector("#progresso");
   if (!slot) return;
   if (snapshot.loading) {
@@ -639,8 +643,17 @@ function paintProgress(root: HTMLElement, snapshot: { loading: boolean; loadedCo
       <button type="button" data-action="cancel-load" data-testid="cancelar-leitura">Cancelar</button>`;
     return;
   }
+  if (snapshot.labeling) {
+    slot.innerHTML = `<p class="progress" data-testid="progresso-etiquetas">A colocar etiquetas… ${snapshot.labelsPlaced} de ${snapshot.labelsTotal}</p>
+      <button type="button" data-action="cancel-load" data-testid="cancelar-etiquetas">Cancelar</button>`;
+    return;
+  }
   if (snapshot.cancelled) {
     slot.innerHTML = `<p class="warning">Leitura cancelada. Foram lidos ${snapshot.objects.length} de ${snapshot.totalSelected} objetos. O total da tabela refere-se aos objetos lidos.</p>`;
+    return;
+  }
+  if (snapshot.labelsCancelled) {
+    slot.innerHTML = `<p class="warning" data-testid="progresso-etiquetas">Colocação de etiquetas cancelada. Foram colocadas ${snapshot.labelsPlaced} de ${snapshot.labelsTotal}.</p>`;
     return;
   }
   slot.innerHTML = "";
@@ -880,8 +893,6 @@ function fillSettings(root: HTMLElement, state: UiState): void {
   const propertyName = root.querySelector<HTMLInputElement>("#show-property");
   if (propertyName) propertyName.checked = state.settings.showPropertyName;
   if (name) name.checked = state.settings.showObjectName;
-  const maxLabels = root.querySelector<HTMLInputElement>("#max-labels");
-  if (maxLabels) maxLabels.value = String(state.settings.maxLabels);
   const layout = root.querySelector<HTMLInputElement>(`input[name="layout"][value="${state.settings.layout}"]`);
   if (layout) layout.checked = true;
   const swatch = root.querySelector<HTMLElement>("#highlight-swatch");
@@ -993,10 +1004,7 @@ function shell(host: ViewerHost): string {
         <label class="check standalone"><input id="show-units" data-testid="mostrar-unidades" type="checkbox" checked /> Mostrar unidades (mm, m², m³, kg, °)</label>
         <label class="check standalone"><input id="show-property" data-testid="mostrar-propriedade" type="checkbox" /> Mostrar o nome da propriedade na etiqueta</label>
         <label class="check standalone"><input id="show-name" data-testid="mostrar-nome" type="checkbox" /> Mostrar o nome do objeto na etiqueta</label>
-        <label class="field">Máximo de etiquetas no modelo
-          <input id="max-labels" data-testid="max-etiquetas" type="number" min="1" max="200" value="20" />
-        </label>
-        <p class="hint">Este limite aplica-se só às etiquetas. A tabela lê todos os objetos selecionados.</p>
+        <p class="hint">As etiquetas são colocadas em todos os objetos selecionados. Numa seleção grande, o visualizador recebe as marcações em lotes e a colocação pode ser cancelada.</p>
         <p class="tip">Dica: depois de colocar as etiquetas, guarde uma Vista no menu Views do Trimble Connect.</p>
       </div>
       <div id="panel-conjuntos" role="tabpanel" aria-labelledby="tab-conjuntos" hidden>
@@ -1044,7 +1052,7 @@ function shell(host: ViewerHost): string {
           <p>Extensão do visualizador 3D do Trimble Connect para consultar peças do modelo: etiquetas junto dos objetos, tabela comparativa e CSV para aprovisionamento.</p>
           <p>Inspirada no Inquire Objects da Construsoft, sem depender dessa licença. Os conjuntos de propriedades e os dados de fabrico ficam guardados apenas neste navegador.</p>
           <ul>
-            <li>As etiquetas no modelo usam, por omissão, os primeiros ${MAX_OBJECTS} objetos. Esse número altera-se em Definições. A tabela não tem limite.</li>
+            <li>As etiquetas são colocadas em todos os objetos selecionados, em lotes, com progresso e um botão para cancelar. Limpar etiquetas remove todas as que esta extensão criou.</li>
             <li>As unidades seguem a API: comprimentos em mm, áreas em m², volumes em m³, massas em kg.</li>
             <li>Fora do Trimble Connect abre um modelo de demonstração.</li>
           </ul>
