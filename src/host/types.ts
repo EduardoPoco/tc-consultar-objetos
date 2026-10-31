@@ -1,4 +1,4 @@
-import type { ColumnSet, InquiredObject, LabelPayload, TextLabel } from "../domain/types";
+import type { ColumnSet, InquiredObject, LabelPayload, SelectionGroup, TextLabel } from "../domain/types";
 import type { DemoPiece } from "../demo/fixtures";
 
 export interface ColumnSetResult {
@@ -47,6 +47,8 @@ export interface DemoHost extends ViewerHost {
   select(runtimeIds: number[], how: "set" | "add" | "toggle"): void;
   selectMany(): void;
   clearSelection(): void;
+  emitSelection(groups: SelectionGroup[]): void;
+  readCount(): number;
 }
 
 export function isDemoHost(host: ViewerHost): host is DemoHost {

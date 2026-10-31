@@ -27,7 +27,17 @@ import { DEMO_MODEL_ID, type DemoPiece } from "../demo/fixtures";
 import type { ViewerHost } from "../host/types";
 import { isDemoHost } from "../host/types";
 import { fabricoDetailHtml, filterMappingRows, readFabricForm, reportHtml } from "./fabrico";
-import { escapeHtml, plural } from "./html";
+import { escapeHtml, plural, setHtml } from "./html";
+import { PROGRESS_DELAY_MS } from "../host/selectionGate";
+
+declare global {
+  interface Window {
+    __consultar?: {
+      emitSelection(runtimeIds: number[]): void;
+      reads(): number;
+    };
+  }
+}
 import { readWorkbook } from "../domain/workbook";
 type TabId = "consultar" | "tabela" | "definicoes" | "conjuntos" | "fabrico" | "cores" | "acerca";
 
@@ -112,6 +122,15 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
     ? savedColumnSet
     : "";
 
+  if (isDemoHost(host)) {
+    window.__consultar = {
+      emitSelection(runtimeIds: number[]) {
+        host.emitSelection([{ modelId: DEMO_MODEL_ID, objectRuntimeIds: runtimeIds }]);
+      },
+      reads: () => host.readCount(),
+    };
+  }
+
   root.innerHTML = shell(host);
   bind(root, host, ui);
   fillSettings(root, ui);
@@ -120,10 +139,32 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
   let wasLoading = host.snapshot().loading;
   let labeling = false;
   let relabel = false;
+  let showProgress = false;
+  let progressTimer: ReturnType<typeof setTimeout> | undefined;
+  let watchingLoad = false;
 
-  const sync = () => paint(root, host, ui);
+  const sync = () => paint(root, host, ui, showProgress);
+  const trackLoad = (loading: boolean) => {
+    if (loading) {
+      if (watchingLoad) return;
+      watchingLoad = true;
+      showProgress = false;
+      progressTimer = setTimeout(() => {
+        progressTimer = undefined;
+        showProgress = host.snapshot().loading;
+        sync();
+      }, PROGRESS_DELAY_MS);
+      return;
+    }
+    if (!watchingLoad && !showProgress) return;
+    watchingLoad = false;
+    showProgress = false;
+    if (progressTimer) clearTimeout(progressTimer);
+    progressTimer = undefined;
+  };
   host.subscribe(() => {
     const snapshot = host.snapshot();
+    trackLoad(snapshot.loading);
     const selectionChanged = snapshot.selectionId !== selectionKey;
     if (selectionChanged) {
       selectionKey = snapshot.selectionId;
@@ -547,13 +588,13 @@ function visibleRows(state: UiState, objects: InquiredObject[]): PropItem[] {
   return filterItems(itemsForTable(currentItems(state, objects), state.checked), objects, state.filter, state.settings.showUnits);
 }
 
-function paint(root: HTMLElement, host: ViewerHost, state: UiState): void {
+function paint(root: HTMLElement, host: ViewerHost, state: UiState, showProgress: boolean): void {
   const snapshot = host.snapshot();
   const objects = snapshot.objects.map((object) => applyFabrication(object, state.dataset));
   const items = currentItems(state, objects);
   paintTabs(root, state.tab);
   paintBanner(root, snapshot.error, snapshot.connectionFailed);
-  paintProgress(root, snapshot);
+  paintProgress(root, snapshot, showProgress);
   paintSource(root, state, snapshot.objects.length);
   paintChecklist(root, items, state.checked, snapshot.loading, objects, host.mode);
   paintActions(root, state, snapshot.objects.length, snapshot.isolated, snapshot.labels.length);
@@ -635,28 +676,32 @@ function paintProgress(root: HTMLElement, snapshot: {
   labelsPlaced: number;
   labelsTotal: number;
   labelsCancelled: boolean;
-}): void {
+}, showProgress: boolean): void {
   const slot = root.querySelector("#progresso");
   if (!slot) return;
+  const showReading = snapshot.loading && showProgress;
+  slot.classList.toggle("is-active", showReading);
   if (snapshot.loading) {
-    slot.innerHTML = `<p class="progress" data-testid="progresso-leitura">A ler propriedades… ${snapshot.loadedCount} de ${snapshot.totalSelected}</p>
-      <button type="button" data-action="cancel-load" data-testid="cancelar-leitura">Cancelar</button>`;
+    setHtml(slot, showReading
+      ? `<p class="progress" data-testid="progresso-leitura">A ler propriedades… ${snapshot.loadedCount} de ${snapshot.totalSelected}</p>
+      <button type="button" data-action="cancel-load" data-testid="cancelar-leitura">Cancelar</button>`
+      : "");
     return;
   }
   if (snapshot.labeling) {
-    slot.innerHTML = `<p class="progress" data-testid="progresso-etiquetas">A colocar etiquetas… ${snapshot.labelsPlaced} de ${snapshot.labelsTotal}</p>
-      <button type="button" data-action="cancel-load" data-testid="cancelar-etiquetas">Cancelar</button>`;
+    setHtml(slot, `<p class="progress" data-testid="progresso-etiquetas">A colocar etiquetas… ${snapshot.labelsPlaced} de ${snapshot.labelsTotal}</p>
+      <button type="button" data-action="cancel-load" data-testid="cancelar-etiquetas">Cancelar</button>`);
     return;
   }
   if (snapshot.cancelled) {
-    slot.innerHTML = `<p class="warning">Leitura cancelada. Foram lidos ${snapshot.objects.length} de ${snapshot.totalSelected} objetos. O total da tabela refere-se aos objetos lidos.</p>`;
+    setHtml(slot, `<p class="warning">Leitura cancelada. Foram lidos ${snapshot.objects.length} de ${snapshot.totalSelected} objetos. O total da tabela refere-se aos objetos lidos.</p>`);
     return;
   }
   if (snapshot.labelsCancelled) {
-    slot.innerHTML = `<p class="warning" data-testid="progresso-etiquetas">Colocação de etiquetas cancelada. Foram colocadas ${snapshot.labelsPlaced} de ${snapshot.labelsTotal}.</p>`;
+    setHtml(slot, `<p class="warning" data-testid="progresso-etiquetas">Colocação de etiquetas cancelada. Foram colocadas ${snapshot.labelsPlaced} de ${snapshot.labelsTotal}.</p>`);
     return;
   }
-  slot.innerHTML = "";
+  setHtml(slot, "");
 }
 
 function paintSource(root: HTMLElement, state: UiState, objectCount: number): void {
@@ -688,12 +733,12 @@ function paintChecklist(
   if (!slot || !empty) return;
   const objectCount = objects.length;
   if (loading && objectCount === 0) {
-    slot.innerHTML = '<p class="muted">A ler propriedades…</p>';
+    setHtml(slot, "");
     empty.textContent = "";
     return;
   }
   if (items.length === 0) {
-    slot.innerHTML = "";
+    setHtml(slot, "");
     empty.textContent = mode === "demo"
       ? "Selecione objetos no modelo. Neste modo de demonstração, clique nos elementos da planta. Ctrl+clique adiciona à seleção."
       : "Selecione objetos no visualizador 3D para consultar as propriedades.";
@@ -705,7 +750,7 @@ function paintChecklist(
       : "Selecione objetos no visualizador para preencher os valores.")
     : "";
   const single = objectCount === 1 ? objects[0] : null;
-  slot.innerHTML = items.map((item) => {
+  const markup = items.map((item) => {
     const meta = item.setName ? `${item.setName} / ${item.name}` : item.name;
     const on = checked.has(item.key);
     const property = single ? findProperty(single.raw, item) : undefined;
@@ -719,6 +764,7 @@ function paintChecklist(
       ${value ? `<span class="check-value">${escapeHtml(value)}</span>` : ""}
     </label>`;
   }).join("");
+  setHtml(slot, markup);
 }
 
 function paintActions(root: HTMLElement, state: UiState, objectCount: number, isolated: boolean, labelCount: number): void {
@@ -747,16 +793,16 @@ function paintTable(root: HTMLElement, state: UiState, objects: InquiredObject[]
   const table = root.querySelector<HTMLElement>("#table-scroll");
   if (!head || !body || !empty || !table) return;
   if (objects.length === 0) {
-    head.innerHTML = "";
-    body.innerHTML = "";
+    setHtml(head, "");
+    setHtml(body, "");
     table.hidden = true;
     empty.textContent = "Selecione objetos para preencher a tabela. Cada peça fica numa linha.";
     return;
   }
   const columns = visibleRows(state, objects);
   if (columns.length === 0) {
-    head.innerHTML = "";
-    body.innerHTML = "";
+    setHtml(head, "");
+    setHtml(body, "");
     table.hidden = true;
     empty.textContent = "Nenhuma propriedade corresponde à pesquisa.";
     return;
@@ -772,18 +818,18 @@ function paintTable(root: HTMLElement, state: UiState, objects: InquiredObject[]
   empty.textContent = inquiry.rows.length > TABLE_PAGE_SIZE
     ? `Página ${page + 1} de ${pageCount}. O total soma as ${inquiry.rows.length} peças, não só as linhas desta página.`
     : "";
-  head.innerHTML = `<tr>
+  setHtml(head, `<tr>
     <th scope="col"><button type="button" data-action="sort-table" data-col="0">Peça${arrow(0)}</button></th>
     ${inquiry.columns.map((column, index) => `<th scope="col"><button type="button" data-action="sort-table" data-col="${index + 1}">${escapeHtml(column.label)}${arrow(index + 1)}</button></th>`).join("")}
-  </tr>`;
-  body.innerHTML = `${visible.map((row) => `<tr data-testid="linha-objeto">
+  </tr>`);
+  setHtml(body, `${visible.map((row) => `<tr data-testid="linha-objeto">
     <th scope="row">${escapeHtml(row.label)}</th>
     ${row.cells.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}
   </tr>`).join("")}
   <tr data-testid="linha-total" class="total-row">
     <th scope="row">Total · ${escapeHtml(inquiry.totalLabel)}</th>
     ${inquiry.totalCells.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}
-  </tr>`;
+  </tr>`);
   const pager = root.querySelector("#table-pager");
   if (pager) {
     pager.innerHTML = inquiry.rows.length <= TABLE_PAGE_SIZE ? "" : `<div class="pager">

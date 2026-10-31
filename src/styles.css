@@ -188,6 +188,17 @@ tbody th { position: sticky; left: 0; background: #f8fbfc; font-weight: 600; }
 th button { border: 0; background: transparent; padding: 0; font-weight: 650; text-align: left; }
 .total-row th, .total-row td { background: #e7f2fa; font-weight: 650; }
 .progress { margin: 8px 14px 0; font-size: 13px; color: var(--blue-deep); }
+#progresso.is-active {
+  box-sizing: border-box;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  overflow: hidden;
+}
+#progresso.is-active .progress { margin: 0; white-space: nowrap; }
+#progresso.is-active button { flex: none; }
 .pager { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-size: 13px; }
 
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 13px; }

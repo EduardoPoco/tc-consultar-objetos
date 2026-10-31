@@ -4,6 +4,7 @@ import { labelAnchor } from "../domain/labels";
 import { boxFromPosition, flattenSelection, toInquiredObject } from "../domain/properties";
 import { PROPERTY_BATCH, type Box3, type LabelPayload, type SelectionGroup, type TextLabel, type Vector3 } from "../domain/types";
 import { addMarkupBatch, removeMarkupBatches } from "./labelBatches";
+import { createSelectionGate } from "./selectionGate";
 import type { ColumnSetResult, HostSnapshot, ViewerHost } from "./types";
 
 interface WorkspaceLike {
@@ -94,6 +95,10 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
     for (const listener of listeners) listener();
   };
 
+  const gate = createSelectionGate((groups) => {
+    void applySelection(groups);
+  });
+
   const onEvent = (event: string, data: unknown) => {
     if (event === "viewer.onModelReset") {
       labelIds = [];
@@ -103,9 +108,10 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
       return;
     }
     if (event !== "viewer.onSelectionChanged") return;
-    const payload = data as SelectionEvent;
-    if (payload?.origin?.isSelf) return;
-    void applySelection(payload?.data ?? []);
+    const parsed = selectionFromEvent(data);
+    // Ignore echoes of our own viewer calls. A repeated selection is also dropped by the gate.
+    if (parsed.self) return;
+    gate.push(parsed.groups);
   };
   const api = await connect(
     window.parent,
@@ -119,49 +125,65 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
     labelCancel = false;
     cancelFlag = false;
     const refs = flattenSelection(groups);
-    const id = ++selectionId;
-    const collected: ReturnType<typeof toInquiredObject>[] = [];
     snapshot = {
       ...snapshot,
       loading: refs.length > 0,
       loadedCount: 0,
       totalSelected: refs.length,
-      objects: [],
       cancelled: false,
       labeling: false,
       labelsCancelled: false,
-      selectionId: id,
       error: "",
     };
     notify();
-    if (refs.length === 0) return;
+    if (refs.length === 0) {
+      if (mine !== ticket) return;
+      labels = [];
+      selectionId += 1;
+      snapshot = {
+        ...snapshot,
+        loading: false,
+        objects: [],
+        labels: [],
+        loadedCount: 0,
+        totalSelected: 0,
+        selectionId,
+      };
+      notify();
+      return;
+    }
     try {
-      const outcome = await loadObjects(api, refs, (loaded, objects) => {
+      const outcome = await loadObjects(api, refs, (loaded) => {
         if (mine !== ticket) return;
-        snapshot = { ...snapshot, loading: true, loadedCount: loaded, objects };
+        snapshot = { ...snapshot, loading: true, loadedCount: loaded, totalSelected: refs.length };
         notify();
       }, () => mine !== ticket || cancelFlag);
       if (mine !== ticket) return;
-      labels = labels.filter((label) => outcome.objects.some((object) => object.modelId === label.modelId && object.runtimeId === label.runtimeId));
+      const objects = outcome.cancelled && outcome.objects.length === 0 ? snapshot.objects : outcome.objects;
+      labels = labels.filter((label) => objects.some((object) => object.modelId === label.modelId && object.runtimeId === label.runtimeId));
+      selectionId += 1;
       snapshot = {
         ...snapshot,
         loading: false,
         cancelled: outcome.cancelled,
-        objects: outcome.objects,
+        objects,
         loadedCount: outcome.objects.length,
+        totalSelected: refs.length,
         labels,
+        selectionId,
         error: "",
       };
     } catch (error) {
       if (mine !== ticket) return;
       const message = error instanceof Error ? error.message : "Não foi possível ler as propriedades.";
-      snapshot = { ...snapshot, loading: false, objects: collected, error: message };
+      snapshot = { ...snapshot, loading: false, error: message };
     }
     notify();
   }
 
   try {
     const current = await api.viewer.getSelection();
+    gate.acknowledge(current);
     await applySelection(current);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Não foi possível ler a seleção.";
@@ -387,10 +409,16 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
   }
 }
 
+function selectionFromEvent(data: unknown): { groups: SelectionGroup[]; self: boolean } {
+  if (Array.isArray(data)) return { groups: data as SelectionGroup[], self: false };
+  const payload = data as SelectionEvent | undefined;
+  return { groups: payload?.data ?? [], self: Boolean(payload?.origin?.isSelf) };
+}
+
 async function loadObjects(
   api: WorkspaceLike,
   refs: Array<{ modelId: string; runtimeId: number }>,
-  onBatch: (loaded: number, objects: ReturnType<typeof toInquiredObject>[]) => void,
+  onBatch: (loaded: number) => void,
   shouldStop: () => boolean,
 ): Promise<{ objects: ReturnType<typeof toInquiredObject>[]; cancelled: boolean }> {
   const byModel = new Map<string, number[]>();
@@ -413,7 +441,7 @@ async function loadObjects(
         objects.push(toInquiredObject(modelId, raw, box));
       }
       loaded += chunk.length;
-      onBatch(loaded, objects.slice());
+      onBatch(loaded);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }

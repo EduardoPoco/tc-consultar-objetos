@@ -1,5 +1,6 @@
-import { toInquiredObject } from "../domain/properties";
+import { flattenSelection, toInquiredObject } from "../domain/properties";
 import type { LabelPayload, TextLabel } from "../domain/types";
+import { createSelectionGate } from "../host/selectionGate";
 import type { DemoHost, HostSnapshot } from "../host/types";
 import { DEMO_COLUMN_SETS, DEMO_MODEL_ID, demoPieces, findDemoEntry } from "./fixtures";
 
@@ -18,6 +19,7 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
   let objectColors: Record<string, string> = {};
   let error = "";
   let selectionId = 0;
+  let reads = 0;
 
   const notify = () => {
     for (const listener of listeners) listener();
@@ -55,6 +57,13 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       connectionFailed: false,
     };
   };
+
+  const gate = createSelectionGate((groups) => {
+    reads += 1;
+    selectionId += 1;
+    selected = flattenSelection(groups).map((ref) => ref.runtimeId);
+    notify();
+  });
 
   return {
     mode: "demo",
@@ -138,6 +147,12 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       selectionId += 1;
       selected = [];
       notify();
+    },
+    emitSelection(groups) {
+      gate.push(groups);
+    },
+    readCount() {
+      return reads;
     },
   };
 }

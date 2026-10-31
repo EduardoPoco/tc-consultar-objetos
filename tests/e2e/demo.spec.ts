@@ -99,6 +99,32 @@ test("isola, pinta e repõe os objetos consultados", async ({ page }) => {
   await expect(page.getByTestId("feedback")).toContainText("repostas");
 });
 
+test("uma rajada de seleção por área só provoca uma leitura", async ({ page }) => {
+  await page.getByRole("button", { name: "Viga V1" }).click();
+  await expect(page.getByTestId("contagem")).toContainText("1 objeto");
+  const list = page.getByTestId("lista");
+  const before = await list.innerHTML();
+  await page.evaluate(() => {
+    window.__consultar?.emitSelection([1]);
+    window.__consultar?.emitSelection([1, 2]);
+    window.__consultar?.emitSelection([1, 2, 3, 4, 5]);
+    window.__consultar?.emitSelection([5, 4, 3, 2, 1]);
+  });
+  await expect(page.getByTestId("contagem")).toContainText("1 objeto");
+  expect(await list.innerHTML()).toBe(before);
+  await expect.poll(() => page.evaluate(() => window.__consultar?.reads() ?? 0)).toBe(1);
+  await expect(page.getByTestId("contagem")).toContainText("5 objetos");
+  await page.getByRole("tab", { name: "Tabela" }).click();
+  await expect(page.getByTestId("linha-objeto")).toHaveCount(5);
+  await page.evaluate(() => {
+    window.__consultar?.emitSelection([1, 2, 3, 4, 5]);
+    window.__consultar?.emitSelection([3, 1, 5, 2, 4]);
+  });
+  await page.waitForTimeout(450);
+  expect(await page.evaluate(() => window.__consultar?.reads() ?? 0)).toBe(1);
+  await expect(page.getByTestId("linha-objeto")).toHaveCount(5);
+});
+
 test("coloca etiquetas em todos os objetos da seleção", async ({ page }) => {
   await page.getByTestId("selecionar-muitos").click();
   await expect(page.getByTestId("contagem")).toContainText("25 objetos");
