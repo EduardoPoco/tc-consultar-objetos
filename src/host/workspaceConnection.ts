@@ -38,10 +38,20 @@ export async function connectWorkspace(): Promise<WorkspaceConnection> {
   };
 }
 
-export async function detectHost(connection: WorkspaceConnection): Promise<HostChoice> {
-  const reported = await reportedHost(connection);
-  const viewer = await probeViewer(connection);
-  return chooseHost(reported, viewer);
+export async function detectHost(connection: WorkspaceConnection): Promise<{
+  kind: HostChoice;
+  reported: string;
+  probe: string;
+}> {
+  const [reportedHostName, viewer] = await Promise.all([
+    reportedHost(connection),
+    probeViewer(connection),
+  ]);
+  return {
+    kind: chooseHost(reportedHostName, viewer),
+    reported: reportedHostName ?? "sem resposta",
+    probe: viewer,
+  };
 }
 
 async function reportedHost(connection: WorkspaceConnection): Promise<string | null> {
@@ -55,8 +65,10 @@ async function reportedHost(connection: WorkspaceConnection): Promise<string | n
 
 async function probeViewer(connection: WorkspaceConnection): Promise<ViewerProbe> {
   try {
-    await withTimeout(connection.api.viewer.getSelection(), PROBE_MS);
-    return "ok";
+    const elements = await withTimeout(connection.api.ui.getUI(), PROBE_MS);
+    const names = (elements ?? []).map((element) => element?.name);
+    const viewerChrome = names.some((name) => name === "MainToolbar" || name === "SidePanel" || name === "MenuToolbar");
+    return viewerChrome ? "ok" : "fail";
   } catch (error) {
     return error instanceof Error && error.message === "timeout" ? "unknown" : "fail";
   }

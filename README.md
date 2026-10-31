@@ -8,7 +8,9 @@ Manifesto: <https://eduardopoco.github.io/tc-consultar-objetos/manifest.json>
 
 O manifesto declara `extensionType: ["project", "3dviewer"]`. No projeto, a extensão regista-se no menu da esquerda (`ui.setMenu`), com o ícone e os atalhos Projeto, Modelos, Ligações, Relatório e Como usar. No visualizador 3D o painel de consulta mantém-se.
 
-A mesma página decide o contexto ao arrancar. Se `viewer.getSelection` responder, é sempre o painel 3D, mesmo que `extension.getHost` diga `project`. A página do projeto só abre quando o anfitrião diz `project` e a API do visualizador falha. Menu, token e lista de ficheiros não correm no visualizador. Se a deteção não for conclusiva, fica o painel 3D.
+A mesma página decide o contexto ao arrancar. `ui.setMenu` corre logo depois de `connect`, antes de qualquer token ou leitura de ficheiros, com título, comando, ícone PNG e submenus. O evento `extension.command` traz o comando em `data`. Se `extension.getHost` disser `3dviewer`, abre o painel 3D. A página do projeto abre quando o anfitrião diz `project` e o painel do visualizador (`ui.getUI`) não está presente. Se a deteção falhar, fica o painel 3D. O separador **Acerca** mostra o contexto detetado, a versão da API e os erros de menu.
+
+Se o menu da esquerda continuar vazio, há um segundo manifesto só de projeto: <https://eduardopoco.github.io/tc-consultar-objetos/manifest-projeto.json>.
 
 ## Como usar
 
@@ -178,4 +180,4 @@ Nas definições do repositório, **Settings → Pages → Build and deployment 
 
 ## Versão
 
-1.2.0
+1.2.1

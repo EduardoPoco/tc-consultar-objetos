@@ -2,9 +2,10 @@ export type ViewerProbe = "ok" | "fail" | "unknown";
 export type HostChoice = "project" | "3dviewer";
 
 /**
- * The 3D viewer wins whenever its API answers. A reported host of "project"
- * is only accepted when the viewer API explicitly fails. Anything uncertain
- * stays on the viewer, so a wrong or missing getHost cannot replace the panel.
+ * The 3D viewer wins when its own chrome answers (ui.getUI). A reported host
+ * of "project" is accepted only when that chrome is absent. Anything uncertain
+ * stays on the viewer. The project menu is registered separately and does not
+ * depend on this choice.
  */
 export function chooseHost(reported: string | null | undefined, viewer: ViewerProbe): HostChoice {
   if (viewer === "ok") return "3dviewer";

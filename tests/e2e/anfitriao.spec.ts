@@ -8,10 +8,19 @@ test("anfitrião 3dviewer: a seleção mostra as propriedades", async ({ page })
   await expect(page.getByTestId("nome-projeto")).toHaveCount(0);
 });
 
+test("acerca mostra o contexto detetado", async ({ page }) => {
+  await page.goto("/?contexto=3dviewer");
+  await page.getByRole("tab", { name: "Acerca" }).click();
+  await expect(page.getByTestId("diagnostico")).toContainText("3dviewer");
+  await expect(page.getByTestId("diagnostico")).toContainText("1.2.1");
+  await expect(page.getByTestId("diagnostico")).toContainText("0.3.38");
+});
+
 test("anfitrião projeto: mostra a página do projeto e não o painel 3D", async ({ page }) => {
   await page.goto("/?contexto=projeto");
   await expect(page.getByTestId("nome-projeto")).toHaveText("OB3270-SNF-BC Metalnord");
   await expect(page.getByRole("heading", { name: "Informação do projeto" })).toBeVisible();
   await expect(page.getByTestId("contagem")).toHaveCount(0);
   await expect(page.getByTestId("modelo")).toHaveCount(0);
+  await expect(page.getByTestId("diagnostico")).toContainText("projeto");
 });

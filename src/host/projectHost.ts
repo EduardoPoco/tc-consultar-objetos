@@ -1,21 +1,46 @@
 import type { ProjectDetails, ProjectUser } from "../domain/project";
 import { formatUser, locationLabel } from "../domain/project";
 import { demoFolder, demoProject, demoUser } from "../demo/projectDemo";
-import { extensionIconUrl, type ProjectPageSource } from "./projectTypes";
+import { extensionMenuIconUrl, type ProjectPageSource } from "./projectTypes";
+import { withTimeout } from "./hostChoice";
 import { listProjectFolder } from "./projectFiles";
 import type { WorkspaceConnection } from "./workspaceConnection";
 
-const MENU = {
-  title: "Consultar Objetos",
-  command: "projeto",
-  subMenus: [
-    { command: "projeto", title: "Projeto" },
-    { command: "modelos", title: "Modelos" },
-    { command: "ligacoes", title: "Ligações" },
-    { command: "relatorio", title: "Relatório" },
-    { command: "ajuda", title: "Como usar" },
-  ],
-};
+export const PROJECT_COMMANDS = ["consultar-objetos", "projeto", "modelos", "ligacoes", "relatorio", "ajuda"] as const;
+
+export function projectMenu(icon: string) {
+  const item = (title: string, command: string) => ({ title, command, icon });
+  return {
+    title: "Consultar Objetos",
+    icon,
+    command: "consultar-objetos",
+    subMenus: [
+      item("Projeto", "projeto"),
+      item("Modelos", "modelos"),
+      item("Ligações", "ligacoes"),
+      item("Relatório", "relatorio"),
+      item("Como usar", "ajuda"),
+    ],
+  };
+}
+
+/** Registers the left-menu entry. Must run immediately after connect, before tokens or file reads. */
+export async function registerProjectMenu(connection: WorkspaceConnection): Promise<string> {
+  const menu = projectMenu(extensionMenuIconUrl());
+  try {
+    await withTimeout(connection.api.ui.setMenu(menu), 3000);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "setMenu falhou";
+    return `falhou: ${message}`;
+  }
+  try {
+    await withTimeout(connection.api.extension.setStatusMessage("Consultar Objetos"), 2000);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "setStatusMessage falhou";
+    return `menu ok; estado falhou: ${message}`;
+  }
+  return "ok";
+}
 
 export function createDemoProjectSource(name: string | null): ProjectPageSource {
   return {
@@ -67,7 +92,6 @@ export function createTrimbleProjectSource(connection: WorkspaceConnection): Pro
         address: project.address?.text?.trim() ?? "",
       };
       const person: ProjectUser = formatUser(user);
-      void registerMenu(connection);
       return { project: details, user: person };
     },
     async listFolder(folderId) {
@@ -97,19 +121,7 @@ export function createTrimbleProjectSource(connection: WorkspaceConnection): Pro
   };
 }
 
-async function registerMenu(connection: WorkspaceConnection): Promise<void> {
-  try {
-    await connection.api.ui.setMenu({
-      ...MENU,
-      icon: extensionIconUrl(),
-      subMenus: MENU.subMenus.map((item) => ({ ...item, icon: extensionIconUrl() })),
-    });
-  } catch {
-    // The page remains usable through its own navigation if the left menu cannot be set.
-  }
-}
-
-function commandFromEvent(data: unknown): string {
+export function commandFromEvent(data: unknown): string {
   if (typeof data === "string") return data;
   if (data && typeof data === "object" && "data" in data && typeof data.data === "string") return data.data;
   return "";

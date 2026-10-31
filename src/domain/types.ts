@@ -149,4 +149,4 @@ export const EXAMPLE_SET: NamedPropertySet = {
   keys: ["Perfil||Nome", "Material||Grau", "Quantidades||Peso"],
 };
 
-export const APP_VERSION = "1.2.0";
+export const APP_VERSION = "1.2.1";

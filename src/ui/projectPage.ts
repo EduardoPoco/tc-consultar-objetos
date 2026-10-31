@@ -11,6 +11,7 @@ import {
 } from "../domain/report";
 import { APP_VERSION } from "../domain/types";
 import type { ProjectDetails, ProjectUser } from "../domain/project";
+import { diagnosticsHtml } from "../host/diagnostics";
 import type { ProjectPageSource } from "../host/projectTypes";
 import { escapeHtml } from "./html";
 
@@ -263,6 +264,7 @@ function pageHtml(state: {
       ${state.section === "ligacoes" ? linksHtml(state.links, state.linkDraft, state.linkMessage) : ""}
       ${state.section === "relatorio" && state.project ? reportHtml(state.project, state.report, state.manualJob, state.reportPreview, state.reportMessage) : ""}
       ${state.section === "ajuda" ? helpHtml() : ""}
+      ${diagnosticsHtml()}
     </main>
     <footer class="panel-footer">${where} · v${APP_VERSION}</footer>
   </div>`;

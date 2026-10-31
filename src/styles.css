@@ -96,6 +96,10 @@ button { cursor: pointer; }
   font-size: 12px;
 }
 
+.diagnostics { margin-top: 16px; }
+.diagnostics h2 { font-size: 15px; }
+.about .facts div { grid-template-columns: 160px 1fr; }
+
 .file-table { width: 100%; border-collapse: collapse; margin-top: 12px; background: white; }
 .file-table th, .file-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
 .crumbs { color: var(--muted); font-size: 13px; }

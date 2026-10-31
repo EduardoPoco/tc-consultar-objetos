@@ -19,3 +19,8 @@ export interface ProjectPageSource {
 export function extensionIconUrl(): string {
   return new URL(`${import.meta.env.BASE_URL}icon.svg`, window.location.href).href;
 }
+
+/** Trimble's own sample uses a PNG in ui.setMenu. SVG icons are not shown in the left menu. */
+export function extensionMenuIconUrl(): string {
+  return new URL(`${import.meta.env.BASE_URL}icon.png`, window.location.href).href;
+}

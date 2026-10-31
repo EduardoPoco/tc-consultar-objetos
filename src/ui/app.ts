@@ -27,6 +27,7 @@ import { DEMO_MODEL_ID, type DemoPiece } from "../demo/fixtures";
 import type { ViewerHost } from "../host/types";
 import { isDemoHost } from "../host/types";
 import { fabricoDetailHtml, filterMappingRows, readFabricForm, reportHtml } from "./fabrico";
+import { diagnosticsHtml } from "../host/diagnostics";
 import { escapeHtml, plural, setHtml } from "./html";
 import { PROGRESS_DELAY_MS } from "../host/selectionGate";
 import { FEATURES } from "../features";
@@ -1111,6 +1112,7 @@ function shell(host: ViewerHost): string {
             <li>As unidades seguem a API: comprimentos em mm, áreas em m², volumes em m³, massas em kg.</li>
             <li>Fora do Trimble Connect abre um modelo de demonstração.</li>
           </ul>
+          ${diagnosticsHtml()}
         </div>
       </div>
       <footer id="footer" class="panel-footer"></footer>

@@ -1,0 +1,9 @@
+{
+  "icon": "https://eduardopoco.github.io/tc-consultar-objetos/icon.png",
+  "title": "Consultar Objetos",
+  "url": "https://eduardopoco.github.io/tc-consultar-objetos/?contexto=projeto",
+  "description": "Página do projeto: obra, modelos, ligações e relatório de produção.",
+  "infoUrl": "https://github.com/EduardoPoco/tc-consultar-objetos#página-do-projeto",
+  "enabled": true,
+  "extensionType": ["project"]
+}
