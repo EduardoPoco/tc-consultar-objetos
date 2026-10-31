@@ -62,6 +62,7 @@ const emptySnapshot = (): HostSnapshot => ({
   isolated: false,
   isolatedRuntimeIds: [],
   highlightColor: null,
+  objectColors: {},
   loading: false,
   error: "",
   connectionFailed: false,
@@ -82,7 +83,7 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
     if (event === "viewer.onModelReset") {
       labelIds = [];
       labels = [];
-      snapshot = { ...snapshot, labels: [], isolated: false, isolatedRuntimeIds: [], highlightColor: null };
+      snapshot = { ...snapshot, labels: [], isolated: false, isolatedRuntimeIds: [], highlightColor: null, objectColors: {} };
       notify();
       return;
     }
@@ -178,13 +179,39 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
         isolated: objects.length > 0,
         isolatedRuntimeIds: objects.map((object) => object.runtimeId),
         highlightColor: color,
+        objectColors: {},
         error: "",
       };
       notify();
     },
     async resetAppearance() {
       await api.viewer.setObjectState(undefined, { visible: "reset", color: "reset" });
-      snapshot = { ...snapshot, isolated: false, isolatedRuntimeIds: [], highlightColor: null, error: "" };
+      snapshot = { ...snapshot, isolated: false, isolatedRuntimeIds: [], highlightColor: null, objectColors: {}, error: "" };
+      notify();
+    },
+    async colorByObject(entries) {
+      await api.viewer.setObjectState(undefined, { color: "reset" });
+      const byColor = new Map<string, Array<{ modelId: string; runtimeId: number }>>();
+      for (const entry of entries) {
+        const list = byColor.get(entry.color) ?? [];
+        list.push(entry);
+        byColor.set(entry.color, list);
+      }
+      for (const [color, colored] of byColor) {
+        const byModel = new Map<string, number[]>();
+        for (const entry of colored) {
+          const ids = byModel.get(entry.modelId) ?? [];
+          ids.push(entry.runtimeId);
+          byModel.set(entry.modelId, ids);
+        }
+        await api.viewer.setObjectState(
+          { modelObjectIds: [...byModel].map(([modelId, objectRuntimeIds]) => ({ modelId, objectRuntimeIds })) },
+          { color: hexToRgba(color) },
+        );
+      }
+      const objectColors: Record<string, string> = {};
+      for (const entry of entries) objectColors[`${entry.modelId}:${entry.runtimeId}`] = entry.color;
+      snapshot = { ...snapshot, objectColors, isolated: false, isolatedRuntimeIds: [], highlightColor: null, error: "" };
       notify();
     },
     async projectId() {
@@ -300,5 +327,6 @@ export function connectionFailureHost(message: string): ViewerHost {
     resetAppearance: async () => undefined,
     projectId: async () => "desligado",
     listAllObjects: async () => [],
+    colorByObject: async () => undefined,
   };
 }

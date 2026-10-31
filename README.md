@@ -76,7 +76,13 @@ A coluna chave (por exemplo **Conjunto**) liga cada linha à propriedade do mode
 
 Uma célula de data com várias entradas (`17/09/2026 - 149` e `18/09/2026 - 13`) passa a ser a última data e a quantidade somada (`18/09/2026 · 162`). As percentagens entram como progresso da etapa.
 
-Estes dados **não são escritos no ficheiro do modelo**. Ficam neste navegador, separados por projeto, e passam a aparecer nas etiquetas, na tabela e nas cores como se fossem propriedades. Para os gravar de forma permanente no Trimble Connect seria preciso um token (`extension.requestPermission("accesstoken")`) e a API de property sets, em geral com uma aplicação na Developer Console. Isso não está incluído.
+Estes dados **não são escritos no ficheiro do modelo**. Ficam neste navegador, separados por projeto, e passam a aparecer nas etiquetas, na tabela e nas cores como se fossem propriedades. Para os gravar de forma permanente no Trimble Connect seria preciso um token (`extension.requestPermission("accesstoken")`, entregue no evento `extension.accessToken`) e a API de property sets do Trimble Connect, em geral com uma aplicação registada na Developer Console. O visualizador não tem uma chamada para gravar propriedades no modelo, por isso esta versão não o faz.
+
+### 9. Cores segundo o fabrico
+
+No separador **Cores**, escolha uma propriedade — estado, máquina, processo, percentagem ou data de uma etapa. As percentagens e as datas recebem um gradiente, do vermelho ao verde; os textos recebem uma cor por categoria. A legenda fica no painel. **Repor** devolve as cores do modelo.
+
+![Modelo colorido pelo progresso de corte, com a legenda de 0% a 100%](docs/imagens/10-cores-legenda.png)
 
 ## Instalar no Trimble Connect
 

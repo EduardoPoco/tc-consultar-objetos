@@ -13,6 +13,7 @@ export interface HostSnapshot {
   isolated: boolean;
   isolatedRuntimeIds: number[];
   highlightColor: string | null;
+  objectColors: Record<string, string>;
   loading: boolean;
   error: string;
   connectionFailed: boolean;
@@ -29,6 +30,7 @@ export interface ViewerHost {
   resetAppearance(): Promise<void>;
   projectId(): Promise<string>;
   listAllObjects(): Promise<InquiredObject[]>;
+  colorByObject(entries: Array<{ modelId: string; runtimeId: number; color: string }>): Promise<void>;
 }
 
 export interface DemoHost extends ViewerHost {

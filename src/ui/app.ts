@@ -1,5 +1,6 @@
 import { toCsv } from "../domain/csv";
 import { applyFabrication, buildDataset, type FabricationDataset, type SavedMapping, type SheetTable } from "../domain/fabric";
+import { planColors, type ColorScale, type LegendStop } from "../domain/palette";
 import { clearDataset, loadDataset, loadMappings, saveDataset, saveMappings } from "../domain/fabricStore";
 import { buildLabelText } from "../domain/labels";
 import {
@@ -22,13 +23,13 @@ import {
   type PropItem,
 } from "../domain/types";
 import { formatValue } from "../domain/format";
-import type { DemoPiece } from "../demo/fixtures";
+import { DEMO_MODEL_ID, type DemoPiece } from "../demo/fixtures";
 import type { ViewerHost } from "../host/types";
 import { isDemoHost } from "../host/types";
 import { fabricoDetailHtml, filterMappingRows, readFabricForm, reportHtml } from "./fabrico";
 import { escapeHtml, plural } from "./html";
 import { readWorkbook } from "../domain/workbook";
-type TabId = "consultar" | "tabela" | "definicoes" | "conjuntos" | "fabrico" | "acerca";
+type TabId = "consultar" | "tabela" | "definicoes" | "conjuntos" | "fabrico" | "cores" | "acerca";
 
 interface UiState {
   tab: TabId;
@@ -48,6 +49,9 @@ interface UiState {
   buffer: ArrayBuffer | null;
   catalog: InquiredObject[];
   fileName: string;
+  colorProperty: string;
+  colorScale: ColorScale;
+  legend: LegendStop[];
 }
 
 const TABS: Array<{ id: TabId; label: string }> = [
@@ -56,6 +60,7 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: "definicoes", label: "Definições" },
   { id: "conjuntos", label: "Conjuntos" },
   { id: "fabrico", label: "Fabrico" },
+  { id: "cores", label: "Cores" },
   { id: "acerca", label: "Acerca" },
 ];
 
@@ -86,6 +91,9 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
     buffer: null,
     catalog: [],
     fileName: "",
+    colorProperty: "",
+    colorScale: "auto",
+    legend: [],
   };
   ui.projectId = await host.projectId();
   ui.dataset = loadDataset(localStorage, ui.projectId);
@@ -179,6 +187,7 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
 
   async function onReset(): Promise<void> {
     await host.resetAppearance();
+    ui.legend = [];
     ui.feedback = "Visibilidade e cores repostas.";
     sync();
   }
@@ -240,6 +249,12 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
         const tab = target.closest<HTMLElement>("[data-tab]")?.dataset.tab as TabId | undefined;
         if (tab) {
           state.tab = tab;
+          if (tab === "cores" && state.catalog.length === 0) {
+            void viewer.listAllObjects().then((objects) => {
+              state.catalog = objects;
+              sync();
+            });
+          }
           sync();
         }
         return;
@@ -293,6 +308,7 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
       if (action === "apply-import") void onApplyImport();
       if (action === "save-mapping") onSaveMapping();
       if (action === "clear-import") onClearImport();
+      if (action === "apply-colors") void onApplyColors();
       if (action === "piece" && isDemoHost(viewer)) {
         const id = Number(target.closest<HTMLElement>("[data-runtime-id]")?.dataset.runtimeId);
         if (!Number.isFinite(id)) return;
@@ -345,6 +361,10 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
       }
       if (target.id === "ficheiro-fabrico" && target.files?.[0]) void onFabricFile(target.files[0]);
       if (target.id === "linha-cabecalho") void reparseFabric(Number(target.value));
+      if (target.id === "propriedade-cor") state.colorProperty = target.value;
+      if (target.id === "modo-cor" && (target.value === "auto" || target.value === "categories" || target.value === "gradient")) {
+        state.colorScale = target.value;
+      }
     });
 
     scope.addEventListener("input", (event) => {
@@ -431,6 +451,26 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
     sync();
   }
 
+  async function onApplyColors(): Promise<void> {
+    if (ui.catalog.length === 0) ui.catalog = await host.listAllObjects();
+    const objects = ui.catalog.map((object) => applyFabrication(object, ui.dataset));
+    const items = currentItems(ui, objects);
+    const item = items.find((entry) => entry.key === ui.colorProperty) ?? items[0];
+    if (!item) {
+      ui.feedback = "Não há propriedades para colorir. Importe o Excel ou selecione objetos.";
+      sync();
+      return;
+    }
+    ui.colorProperty = item.key;
+    const plan = planColors(objects, item, ui.colorScale);
+    ui.legend = plan.legend;
+    await host.colorByObject(plan.colors);
+    ui.feedback = plan.scale === "gradient"
+      ? "Modelo colorido com gradiente. Use Repor para voltar às cores originais."
+      : "Modelo colorido por categoria. Use Repor para voltar às cores originais.";
+    sync();
+  }
+
   function onClearImport(): void {
     clearDataset(localStorage, ui.projectId);
     ui.dataset = null;
@@ -481,6 +521,7 @@ function paint(root: HTMLElement, host: ViewerHost, state: UiState): void {
   paintTable(root, state, objects);
   const report = root.querySelector("#fabrico-relatorio");
   if (report) report.innerHTML = reportHtml(state.dataset?.report ?? null, state.dataset?.fileName ?? "");
+  paintColorControls(root, state);
   paintSets(root, state);
   paintPieces(root, host);
   paintFooter(root, host.mode, snapshot);
@@ -491,6 +532,33 @@ function paint(root: HTMLElement, host: ViewerHost, state: UiState): void {
     count.textContent = snapshot.objects.length === 0
       ? "Nenhum objeto na consulta"
       : `${plural(snapshot.objects.length, "objeto na consulta", "objetos na consulta")} · ${plural(state.checked.size, "propriedade marcada", "propriedades marcadas")}`;
+  }
+}
+
+function paintColorControls(root: HTMLElement, state: UiState): void {
+  const select = root.querySelector<HTMLSelectElement>("#propriedade-cor");
+  if (select && document.activeElement !== select) {
+    const objects = state.catalog.map((object) => applyFabrication(object, state.dataset));
+    const items = currentItems(state, objects);
+    const preferred = items.find((item) => item.name.toLowerCase() === "corte · %")
+      ?? items.find((item) => item.name.includes("%"))
+      ?? items[0];
+    const previous = state.colorProperty;
+    select.innerHTML = items.map((item) => {
+      const label = item.setName ? `${item.setName} / ${item.name}` : item.name;
+      return `<option value="${escapeHtml(item.key)}">${escapeHtml(label)}</option>`;
+    }).join("");
+    const chosen = items.some((item) => item.key === previous) ? previous : preferred?.key ?? "";
+    state.colorProperty = chosen;
+    if (chosen) select.value = chosen;
+  }
+  const mode = root.querySelector<HTMLSelectElement>("#modo-cor");
+  if (mode && document.activeElement !== mode) mode.value = state.colorScale;
+  const legend = root.querySelector("#legenda");
+  if (legend) {
+    legend.innerHTML = state.legend.length === 0
+      ? ""
+      : `<h2>Legenda</h2><ul class="legend">${state.legend.map((stop) => `<li><span class="swatch" style="background:${escapeHtml(stop.color)}"></span>${escapeHtml(stop.label)}</li>`).join("")}</ul>`;
   }
 }
 
@@ -674,11 +742,13 @@ function paintPieces(root: HTMLElement, host: ViewerHost): void {
     const on = selected.has(id);
     const colored = snapshot.isolated && snapshot.isolatedRuntimeIds.includes(id);
     const hidden = snapshot.isolated && !snapshot.isolatedRuntimeIds.includes(id);
+    const painted = snapshot.objectColors[`${DEMO_MODEL_ID}:${id}`];
     piece.classList.toggle("is-selected", on);
-    piece.classList.toggle("is-colored", colored);
+    piece.classList.toggle("is-colored", colored || Boolean(painted));
     piece.classList.toggle("is-hidden", hidden);
     piece.setAttribute("aria-pressed", on ? "true" : "false");
-    if (colored && snapshot.highlightColor) piece.style.background = snapshot.highlightColor;
+    if (painted) piece.style.background = painted;
+    else if (colored && snapshot.highlightColor) piece.style.background = snapshot.highlightColor;
     else piece.style.removeProperty("background");
   });
   const badge = root.querySelector("#isolate-badge");
@@ -863,6 +933,24 @@ function shell(host: ViewerHost): string {
         </label>
         <div id="fabrico-relatorio"></div>
         <div id="fabrico-mapa"></div>
+      </div>
+      <div id="panel-cores" role="tabpanel" aria-labelledby="tab-cores" hidden>
+        <p class="hint">Pinte o modelo segundo uma propriedade. Percentagens e datas usam um gradiente, do vermelho ao verde; o resto usa uma cor por categoria.</p>
+        <label class="field">Propriedade
+          <select id="propriedade-cor" data-testid="propriedade-cor"></select>
+        </label>
+        <label class="field">Escala
+          <select id="modo-cor" data-testid="modo-cor">
+            <option value="auto">Automático</option>
+            <option value="categories">Categorias</option>
+            <option value="gradient">Gradiente</option>
+          </select>
+        </label>
+        <div class="actions">
+          <button type="button" class="primary" data-action="apply-colors" data-testid="aplicar-cores">Aplicar cores</button>
+          <button type="button" class="ghost" data-action="reset" data-testid="repor-cores">Repor</button>
+        </div>
+        <div id="legenda" data-testid="legenda"></div>
       </div>
       <div id="panel-acerca" role="tabpanel" aria-labelledby="tab-acerca" hidden>
         <div class="about">

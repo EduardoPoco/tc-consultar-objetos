@@ -80,6 +80,18 @@ test("09 relatório de correspondência", async ({ page }) => {
   await shot(page, "09-relatorio-correspondencia.png");
 });
 
+test("10 cores com legenda", async ({ page }) => {
+  await page.getByRole("tab", { name: "Fabrico" }).click();
+  await page.getByTestId("ficheiro-fabrico").setInputFiles("tests/fixtures/fabrico-mini.xlsx");
+  await page.getByTestId("aplicar-importacao").click();
+  await page.getByRole("tab", { name: "Cores" }).click();
+  await page.getByTestId("propriedade-cor").selectOption({ label: "Fabrico / Corte · %" });
+  await page.getByTestId("aplicar-cores").click();
+  await expect(page.getByTestId("legenda")).toContainText("100%");
+  await expect(page.locator(".piece.is-colored")).toHaveCount(8);
+  await shot(page, "10-cores-legenda.png");
+});
+
 test("07 conjuntos de propriedades", async ({ page }) => {
   await page.getByRole("tab", { name: "Definições" }).click();
   await page.getByTestId("conjunto-colunas").selectOption("");

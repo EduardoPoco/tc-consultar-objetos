@@ -15,6 +15,7 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
   let isolated = false;
   let isolatedRuntimeIds: number[] = [];
   let highlightColor: string | null = null;
+  let objectColors: Record<string, string> = {};
   let error = "";
 
   const notify = () => {
@@ -41,6 +42,7 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       isolated,
       isolatedRuntimeIds,
       highlightColor,
+      objectColors,
       loading: false,
       error,
       connectionFailed: false,
@@ -72,10 +74,20 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       isolated = objects.length > 0;
       isolatedRuntimeIds = objects.map((object) => object.runtimeId);
       highlightColor = color;
+      objectColors = {};
       error = "";
       notify();
     },
     async resetAppearance() {
+      isolated = false;
+      isolatedRuntimeIds = [];
+      highlightColor = null;
+      objectColors = {};
+      notify();
+    },
+    async colorByObject(entries) {
+      objectColors = {};
+      for (const entry of entries) objectColors[`${entry.modelId}:${entry.runtimeId}`] = entry.color;
       isolated = false;
       isolatedRuntimeIds = [];
       highlightColor = null;
