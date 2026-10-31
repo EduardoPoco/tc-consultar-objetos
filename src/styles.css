@@ -99,6 +99,12 @@ button { cursor: pointer; }
 .file-table { width: 100%; border-collapse: collapse; margin-top: 12px; background: white; }
 .file-table th, .file-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
 .crumbs { color: var(--muted); font-size: 13px; }
+.link-list { list-style: none; padding: 0; margin: 0 0 16px; }
+.link-list li { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.link-list a { flex: 1; }
+.project-page .field { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; font-size: 13px; }
+.project-page .field input, .project-page .field select { padding: 6px 8px; border: 1px solid #b7c6d2; border-radius: 6px; }
+.project-page .primary { background: var(--blue); color: white; border: 0; border-radius: 6px; padding: 8px 12px; }
 .project-page .warning { background: var(--warn); color: var(--warn-ink); padding: 10px 12px; border-radius: 8px; }
 
 .shell {

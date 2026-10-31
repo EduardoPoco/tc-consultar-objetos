@@ -1,4 +1,5 @@
 import type { ProjectFileItem } from "../domain/files";
+import { isHttpUrl, loadLinks, saveLinks, upsertLink, type ExternalLink } from "../domain/links";
 import { APP_VERSION } from "../domain/types";
 import type { ProjectDetails, ProjectUser } from "../domain/project";
 import type { ProjectPageSource } from "../host/projectTypes";
@@ -7,6 +8,7 @@ import { escapeHtml } from "./html";
 const SECTIONS = [
   { id: "projeto", label: "Projeto" },
   { id: "modelos", label: "Modelos" },
+  { id: "ligacoes", label: "Ligações" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
@@ -20,6 +22,9 @@ export async function startProjectPage(root: HTMLElement, source: ProjectPageSou
   let files: ProjectFileItem[] = [];
   let filesNote = "";
   let filesStatus = "";
+  let links: ExternalLink[] = [];
+  let linkDraft = { id: "", name: "", url: "" };
+  let linkMessage = "";
 
   const paint = () => {
     root.innerHTML = pageHtml({
@@ -32,6 +37,9 @@ export async function startProjectPage(root: HTMLElement, source: ProjectPageSou
       files,
       filesNote,
       filesStatus,
+      links,
+      linkDraft,
+      linkMessage,
     });
   };
 
@@ -82,6 +90,47 @@ export async function startProjectPage(root: HTMLElement, source: ProjectPageSou
       void showFiles(previous?.id ?? null);
       return;
     }
+    const linkAction = target.closest<HTMLElement>("[data-link-action]")?.dataset.linkAction;
+    if (linkAction && project) {
+      if (linkAction === "edit") {
+        const id = target.closest<HTMLElement>("[data-link-id]")?.dataset.linkId ?? "";
+        const current = links.find((link) => link.id === id);
+        if (current) linkDraft = { ...current };
+        linkMessage = "";
+        paint();
+        return;
+      }
+      if (linkAction === "delete") {
+        const id = target.closest<HTMLElement>("[data-link-id]")?.dataset.linkId ?? "";
+        links = links.filter((link) => link.id !== id);
+        saveLinks(localStorage, project.id, links);
+        if (linkDraft.id === id) linkDraft = { id: "", name: "", url: "" };
+        linkMessage = "Ligação removida deste navegador.";
+        paint();
+        return;
+      }
+      if (linkAction === "save") {
+        const name = root.querySelector<HTMLInputElement>("#ligacao-nome")?.value ?? "";
+        const url = root.querySelector<HTMLInputElement>("#ligacao-url")?.value ?? "";
+        linkDraft = { id: linkDraft.id, name, url };
+        if (!name.trim()) {
+          linkMessage = "Indique um nome.";
+          paint();
+          return;
+        }
+        if (!isHttpUrl(url)) {
+          linkMessage = "O endereço tem de começar por http:// ou https://.";
+          paint();
+          return;
+        }
+        links = upsertLink(links, { id: linkDraft.id, name, url });
+        saveLinks(localStorage, project.id, links);
+        linkDraft = { id: "", name: "", url: "" };
+        linkMessage = "Ligação guardada neste navegador.";
+        paint();
+      }
+      return;
+    }
     const modelId = target.closest<HTMLElement>("[data-open-model]")?.dataset.openModel;
     if (modelId) {
       const item = files.find((file) => file.id === modelId);
@@ -104,6 +153,7 @@ export async function startProjectPage(root: HTMLElement, source: ProjectPageSou
     const loaded = await source.load();
     project = loaded.project;
     user = loaded.user;
+    links = loadLinks(localStorage, project.id);
   } catch (cause) {
     error = cause instanceof Error ? cause.message : "Não foi possível ler o projeto.";
   }
@@ -120,6 +170,9 @@ function pageHtml(state: {
   files: ProjectFileItem[];
   filesNote: string;
   filesStatus: string;
+  links: ExternalLink[];
+  linkDraft: { id: string; name: string; url: string };
+  linkMessage: string;
 }): string {
   const icon = `${import.meta.env.BASE_URL}icon.svg`;
   const where = state.mode === "demo" ? "Modo de demonstração" : "Ligado ao Trimble Connect";
@@ -139,9 +192,35 @@ function pageHtml(state: {
       ${state.error ? `<p class="banner" role="alert">${escapeHtml(state.error)}</p>` : ""}
       ${state.section === "projeto" ? infoHtml(state.project, state.user) : ""}
       ${state.section === "modelos" ? filesHtml(state.crumbs, state.files, state.filesNote, state.filesStatus) : ""}
+      ${state.section === "ligacoes" ? linksHtml(state.links, state.linkDraft, state.linkMessage) : ""}
     </main>
     <footer class="panel-footer">${where} · v${APP_VERSION}</footer>
   </div>`;
+}
+
+function linksHtml(
+  links: ExternalLink[],
+  draft: { id: string; name: string; url: string },
+  message: string,
+): string {
+  const rows = links.map((link) => `<li data-testid="ligacao">
+    <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.name)}</a>
+    <button type="button" data-link-action="edit" data-link-id="${escapeHtml(link.id)}">Editar</button>
+    <button type="button" data-link-action="delete" data-link-id="${escapeHtml(link.id)}">Remover</button>
+  </li>`).join("");
+  return `<section data-testid="seccao-ligacoes">
+    <h2>Ligações</h2>
+    <p class="muted">Endereços úteis deste projeto. Ficam neste navegador e abrem num separador novo.</p>
+    ${rows ? `<ul class="link-list" data-testid="lista-ligacoes">${rows}</ul>` : `<p class="muted">Ainda não há ligações.</p>`}
+    <label class="field">Nome
+      <input id="ligacao-nome" data-testid="ligacao-nome" type="text" maxlength="80" value="${escapeHtml(draft.name)}" />
+    </label>
+    <label class="field">Endereço
+      <input id="ligacao-url" data-testid="ligacao-url" type="url" value="${escapeHtml(draft.url)}" placeholder="https://" />
+    </label>
+    <button type="button" class="primary" data-link-action="save" data-testid="guardar-ligacao">${draft.id ? "Atualizar" : "Adicionar"}</button>
+    ${message ? `<p class="feedback" data-testid="aviso-ligacao">${escapeHtml(message)}</p>` : ""}
+  </section>`;
 }
 
 function filesHtml(

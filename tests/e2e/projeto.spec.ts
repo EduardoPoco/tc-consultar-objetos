@@ -11,6 +11,28 @@ test("mostra a informação do projeto de demonstração", async ({ page }) => {
   await expect(page.getByRole("tab", { name: "Consultar" })).toHaveCount(0);
 });
 
+test("guarda, edita e remove ligações do projeto", async ({ page }) => {
+  await page.goto("/?projeto=1");
+  await page.getByRole("button", { name: "Ligações" }).click();
+  await page.getByTestId("ligacao-nome").fill("Portal da obra");
+  await page.getByTestId("ligacao-url").fill("nota");
+  await page.getByTestId("guardar-ligacao").click();
+  await expect(page.getByTestId("aviso-ligacao")).toContainText("http");
+  await page.getByTestId("ligacao-url").fill("https://exemplo.pt/obra");
+  await page.getByTestId("guardar-ligacao").click();
+  const link = page.getByRole("link", { name: "Portal da obra" });
+  await expect(link).toHaveAttribute("href", "https://exemplo.pt/obra");
+  await expect(link).toHaveAttribute("target", "_blank");
+  await page.getByRole("button", { name: "Editar" }).click();
+  await page.getByTestId("ligacao-nome").fill("Portal revisto");
+  await page.getByTestId("guardar-ligacao").click();
+  await page.reload();
+  await page.getByRole("button", { name: "Ligações" }).click();
+  await expect(page.getByRole("link", { name: "Portal revisto" })).toBeVisible();
+  await page.getByRole("button", { name: "Remover" }).click();
+  await expect(page.getByRole("link", { name: "Portal revisto" })).toHaveCount(0);
+});
+
 test("lista pastas e abre um modelo de demonstração", async ({ page }) => {
   await page.goto("/?projeto=1");
   await page.getByRole("button", { name: "Modelos" }).click();

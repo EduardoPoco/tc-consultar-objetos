@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { apiBaseForLocation, fileItemsFromPayload, isModelName, rootFolderId, tokenFromEvent } from "../../src/domain/files";
+import { isHttpUrl, loadLinks, saveLinks, upsertLink } from "../../src/domain/links";
 import { formatUser, locationLabel } from "../../src/domain/project";
 import { demoProject } from "../../src/demo/projectDemo";
 
@@ -34,6 +35,21 @@ describe("página do projeto", () => {
     expect(items.map((item) => item.kind)).toEqual(["folder", "file"]);
     expect(items[1].model).toBe(true);
     expect(items[1].versionId).toBe("v2");
+  });
+
+  it("guarda ligações http por projeto e recusa outros esquemas", () => {
+    expect(isHttpUrl("https://exemplo.pt/obra")).toBe(true);
+    expect(isHttpUrl("javascript:alert(1)")).toBe(false);
+    const store = new Map<string, string>();
+    const memory = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => { store.set(key, value); },
+    };
+    const saved = upsertLink([], { id: "", name: "Portal", url: "https://exemplo.pt" });
+    saveLinks(memory, "obra", saved);
+    expect(loadLinks(memory, "obra")).toHaveLength(1);
+    expect(loadLinks(memory, "outra")).toEqual([]);
+    expect(loadLinks(memory, "obra")[0].name).toBe("Portal");
   });
 
   it("usa o projeto de demonstração OB3270", () => {

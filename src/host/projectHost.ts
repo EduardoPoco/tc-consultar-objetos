@@ -11,6 +11,7 @@ const MENU = {
   subMenus: [
     { command: "projeto", title: "Projeto" },
     { command: "modelos", title: "Modelos" },
+    { command: "ligacoes", title: "Ligações" },
   ],
 };
 
