@@ -344,11 +344,12 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
         if (state.labelsActive) void refreshLabels();
         return;
       }
-      if (target.id === "show-units" || target.id === "show-name") {
+      if (target.id === "show-units" || target.id === "show-name" || target.id === "show-property") {
         state.settings = {
           ...state.settings,
           showUnits: (scope.querySelector<HTMLInputElement>("#show-units")?.checked ?? true),
-          showObjectName: (scope.querySelector<HTMLInputElement>("#show-name")?.checked ?? true),
+          showPropertyName: (scope.querySelector<HTMLInputElement>("#show-property")?.checked ?? false),
+          showObjectName: (scope.querySelector<HTMLInputElement>("#show-name")?.checked ?? false),
         };
         saveSettings(localStorage, state.settings);
         if (state.labelsActive) void refreshLabels();
@@ -802,6 +803,8 @@ function fillSettings(root: HTMLElement, state: UiState): void {
   if (highlight) highlight.value = state.settings.highlightColor;
   if (separator) separator.value = state.settings.separator;
   if (units) units.checked = state.settings.showUnits;
+  const propertyName = root.querySelector<HTMLInputElement>("#show-property");
+  if (propertyName) propertyName.checked = state.settings.showPropertyName;
   if (name) name.checked = state.settings.showObjectName;
   const layout = root.querySelector<HTMLInputElement>(`input[name="layout"][value="${state.settings.layout}"]`);
   if (layout) layout.checked = true;
@@ -910,7 +913,8 @@ function shell(host: ViewerHost): string {
           <label class="radio"><input type="radio" name="layout" value="horizontal" data-testid="disposicao-horizontal" /> Horizontal, na mesma linha</label>
         </fieldset>
         <label class="check standalone"><input id="show-units" data-testid="mostrar-unidades" type="checkbox" checked /> Mostrar unidades (mm, m², m³, kg, °)</label>
-        <label class="check standalone"><input id="show-name" data-testid="mostrar-nome" type="checkbox" checked /> Mostrar o nome do objeto na etiqueta</label>
+        <label class="check standalone"><input id="show-property" data-testid="mostrar-propriedade" type="checkbox" /> Mostrar o nome da propriedade na etiqueta</label>
+        <label class="check standalone"><input id="show-name" data-testid="mostrar-nome" type="checkbox" /> Mostrar o nome do objeto na etiqueta</label>
         <p class="tip">Dica: depois de colocar as etiquetas, guarde uma Vista no menu Views do Trimble Connect.</p>
       </div>
       <div id="panel-conjuntos" role="tabpanel" aria-labelledby="tab-conjuntos" hidden>

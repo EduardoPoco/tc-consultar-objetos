@@ -38,18 +38,20 @@ test("coloca etiquetas na vertical e na horizontal, com ou sem unidades", async 
   await page.getByTestId("mostrar-etiquetas").click();
   const label = page.getByTestId("etiqueta");
   await expect(label).toHaveCount(1);
-  await expect(label).toContainText("HEA200");
-  expect(await label.textContent()).toContain("\n");
-  expect(await label.textContent()).toContain("kg");
+  expect(await label.textContent()).toBe("HEA200\n253,8 kg");
 
   await page.getByRole("tab", { name: "Definições" }).click();
+  await expect(page.getByTestId("mostrar-propriedade")).not.toBeChecked();
+  await expect(page.getByTestId("mostrar-nome")).not.toBeChecked();
   await page.getByTestId("disposicao-horizontal").check();
-  await expect(label).toContainText("HEA200 | Peso:");
-  expect(await label.textContent()).not.toContain("\n");
+  await expect.poll(async () => label.textContent()).toBe("HEA200 | 253,8 kg");
+
+  await page.getByTestId("mostrar-propriedade").check();
+  await expect.poll(async () => label.textContent()).toBe("Perfil: HEA200 | Peso: 253,8 kg");
+  await page.getByTestId("mostrar-propriedade").uncheck();
 
   await page.getByTestId("mostrar-unidades").uncheck();
-  await expect(label).not.toContainText("kg");
-  await expect(label).toContainText("253,8");
+  await expect.poll(async () => label.textContent()).toBe("HEA200 | 253,8");
 
   await page.getByRole("tab", { name: "Consultar" }).click();
   await page.getByTestId("limpar-etiquetas").click();

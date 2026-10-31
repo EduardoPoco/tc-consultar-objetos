@@ -44,7 +44,9 @@ test("04 etiquetas no modelo", async ({ page }) => {
   await expect(page.getByTestId("etiqueta")).toHaveCount(2);
   await page.getByRole("tab", { name: "Definições" }).click();
   await page.getByTestId("disposicao-horizontal").check();
-  await expect(page.getByTestId("etiqueta").first()).toContainText("|");
+  await expect(page.getByTestId("mostrar-propriedade")).not.toBeChecked();
+  await expect(page.getByTestId("mostrar-nome")).not.toBeChecked();
+  await expect(page.getByTestId("etiqueta").first()).toHaveText("S275JR | 253,8 kg");
   await shot(page, "04-etiquetas-no-modelo.png");
 });
 

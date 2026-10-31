@@ -85,6 +85,7 @@ export interface LabelSettings {
   separator: string;
   layout: "horizontal" | "vertical";
   showUnits: boolean;
+  showPropertyName: boolean;
   showObjectName: boolean;
 }
 
@@ -134,7 +135,8 @@ export const DEFAULT_SETTINGS: LabelSettings = {
   separator: " | ",
   layout: "vertical",
   showUnits: true,
-  showObjectName: true,
+  showPropertyName: false,
+  showObjectName: false,
 };
 
 export const EXAMPLE_SET: NamedPropertySet = {

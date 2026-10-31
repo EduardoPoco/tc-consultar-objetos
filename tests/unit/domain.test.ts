@@ -60,7 +60,8 @@ const settings: LabelSettings = {
   separator: " | ",
   layout: "vertical",
   showUnits: true,
-  showObjectName: true,
+  showPropertyName: false,
+  showObjectName: false,
 };
 
 function inquired(raw: RawObject = beam): InquiredObject {
@@ -151,9 +152,11 @@ describe("etiquetas", () => {
       { field: "Perfil.Nome", label: "Perfil" },
       { field: "Quantidades.Peso", label: "Peso" },
     ]);
-    expect(buildLabelText(object, items, settings)).toBe("Viga V1\nPerfil: HEA200\nPeso: 253,8 kg");
-    expect(buildLabelText(object, items, { ...settings, layout: "horizontal", showUnits: false, showObjectName: false }))
-      .toBe("Perfil: HEA200 | Peso: 253,8");
+    expect(buildLabelText(object, items, settings)).toBe("HEA200\n253,8 kg");
+    expect(buildLabelText(object, items, { ...settings, layout: "horizontal", showUnits: false }))
+      .toBe("HEA200 | 253,8");
+    expect(buildLabelText(object, items, { ...settings, showPropertyName: true, showObjectName: true }))
+      .toBe("Viga V1\nPerfil: HEA200\nPeso: 253,8 kg");
   });
 
   it("converte a caixa delimitadora de metros para milímetros e posiciona a etiqueta ao lado", () => {
@@ -220,6 +223,13 @@ describe("conjuntos guardados", () => {
     const added = upsertSet(updated, "Betão: classe, volume", ["Material||Grau", "Quantidades||Volume"]);
     expect(added).toHaveLength(2);
     expect(loadSettings(store).showUnits).toBe(true);
+    expect(loadSettings(store).showObjectName).toBe(false);
+    expect(loadSettings(store).showPropertyName).toBe(false);
+    const legacy = loadSettings(memoryStore({
+      "tc-consultar-objetos:definicoes": JSON.stringify({ showObjectName: true, showUnits: true }),
+    }));
+    expect(legacy.showObjectName).toBe(false);
+    expect(legacy.showPropertyName).toBe(false);
     expect(loadSettings(memoryStore({ "tc-consultar-objetos:definicoes": "{" })).labelColor).toBe("#ffe14a");
   });
 });

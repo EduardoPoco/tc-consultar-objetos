@@ -45,7 +45,7 @@ export function buildLabelText(object: InquiredObject, items: PropItem[], settin
   for (const item of items) {
     const property = findProperty(object.raw, item);
     const value = property ? formatValue(property, settings.showUnits) : "—";
-    parts.push(`${item.label}: ${value}`);
+    parts.push(settings.showPropertyName ? `${item.label}: ${value}` : value);
   }
   if (parts.length === 0) return "";
   return settings.layout === "horizontal" ? parts.join(settings.separator) : parts.join("\n");

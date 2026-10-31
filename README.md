@@ -34,7 +34,7 @@ A lista vem do conjunto de colunas da Tabela de dados (`dataTable.getColumnSets`
 
 ### 4. Etiquetas no modelo
 
-**Mostrar etiquetas** coloca um texto junto de cada objeto. A posição usa a caixa delimitadora do objeto. Pode escolher a cor, a disposição vertical ou horizontal, o separador, se as unidades aparecem (mm, m², m³, kg, °) e se o nome do objeto entra na etiqueta.
+**Mostrar etiquetas** coloca, junto de cada objeto, só os valores das propriedades marcadas. Vários valores ficam na mesma linha, com o separador escolhido, ou um por linha. Em **Definições** pode incluir o nome da propriedade e o nome do objeto; as duas opções começam desligadas. A cor, as unidades (mm, m², m³, kg, °) e a posição da etiqueta também se ajustam aí.
 
 ![Definições das etiquetas e textos horizontais junto da viga e da laje](docs/imagens/04-etiquetas-no-modelo.png)
 

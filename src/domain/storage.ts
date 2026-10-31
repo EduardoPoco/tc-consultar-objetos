@@ -58,13 +58,19 @@ export function loadSettings(store: KeyValueStore): LabelSettings {
     if (!parsed || typeof parsed !== "object") return { ...DEFAULT_SETTINGS };
     const value = parsed as Partial<LabelSettings>;
     const layout = value.layout === "horizontal" || value.layout === "vertical" ? value.layout : DEFAULT_SETTINGS.layout;
+    // Older builds always stored the object name as on, before the property-name option existed.
+    const showPropertyName = typeof value.showPropertyName === "boolean" ? value.showPropertyName : false;
+    const showObjectName = typeof value.showPropertyName === "boolean" && typeof value.showObjectName === "boolean"
+      ? value.showObjectName
+      : false;
     return {
       labelColor: typeof value.labelColor === "string" ? value.labelColor : DEFAULT_SETTINGS.labelColor,
       highlightColor: typeof value.highlightColor === "string" ? value.highlightColor : DEFAULT_SETTINGS.highlightColor,
       separator: typeof value.separator === "string" ? value.separator : DEFAULT_SETTINGS.separator,
       layout,
       showUnits: typeof value.showUnits === "boolean" ? value.showUnits : DEFAULT_SETTINGS.showUnits,
-      showObjectName: typeof value.showObjectName === "boolean" ? value.showObjectName : DEFAULT_SETTINGS.showObjectName,
+      showPropertyName,
+      showObjectName,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
