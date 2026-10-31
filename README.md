@@ -8,6 +8,8 @@ Manifesto: <https://eduardopoco.github.io/tc-consultar-objetos/manifest.json>
 
 O manifesto declara `extensionType: ["project", "3dviewer"]`. No projeto, a extensão regista-se no menu da esquerda (`ui.setMenu`), com o ícone e os atalhos Projeto, Modelos, Ligações, Relatório e Como usar. No visualizador 3D o painel de consulta mantém-se.
 
+A mesma página decide o contexto ao arrancar. Se `viewer.getSelection` responder, é sempre o painel 3D, mesmo que `extension.getHost` diga `project`. A página do projeto só abre quando o anfitrião diz `project` e a API do visualizador falha. Menu, token e lista de ficheiros não correm no visualizador. Se a deteção não for conclusiva, fica o painel 3D.
+
 ## Como usar
 
 Abra o modelo no visualizador 3D e escolha **Consultar Objetos** nas extensões. Fora do Trimble Connect, abra a página da extensão: o painel é o mesmo e a planta da direita substitui o visualizador.
