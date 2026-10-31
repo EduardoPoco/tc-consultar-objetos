@@ -1,6 +1,7 @@
 import { createDemoHost } from "../demo/demoHost";
 import type { ViewerHost } from "./types";
 import { connectionFailureHost, createTrimbleHost } from "./trimbleHost";
+import { connectWorkspace } from "./workspaceConnection";
 
 export async function createHost(): Promise<ViewerHost> {
   const params = new URLSearchParams(window.location.search);
@@ -8,7 +9,7 @@ export async function createHost(): Promise<ViewerHost> {
     return createDemoHost({ dataTable: !params.has("semTabela") });
   }
   try {
-    return await createTrimbleHost();
+    return await createTrimbleHost(await connectWorkspace());
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Tempo esgotado.";
     return connectionFailureHost(`Não foi possível ligar ao Trimble Connect. ${detail}`);

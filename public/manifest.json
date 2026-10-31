@@ -2,8 +2,8 @@
   "icon": "https://eduardopoco.github.io/tc-consultar-objetos/icon.svg",
   "title": "Consultar Objetos",
   "url": "https://eduardopoco.github.io/tc-consultar-objetos/",
-  "description": "Consulta as propriedades dos objetos selecionados e mostra-as em etiquetas no modelo 3D, com tabela e exportação CSV.",
+  "description": "Consulta objetos no visualizador 3D e, no menu do projeto, mostra a obra, os modelos e ligações.",
   "infoUrl": "https://github.com/EduardoPoco/tc-consultar-objetos#como-usar",
   "enabled": true,
-  "extensionType": ["3dviewer"]
+  "extensionType": ["project", "3dviewer"]
 }

@@ -5,6 +5,7 @@ import { boxFromPosition, flattenSelection, toInquiredObject } from "../domain/p
 import { PROPERTY_BATCH, type Box3, type LabelPayload, type SelectionGroup, type TextLabel, type Vector3 } from "../domain/types";
 import { addMarkupBatch, removeMarkupBatches } from "./labelBatches";
 import { createSelectionGate } from "./selectionGate";
+import type { WorkspaceConnection } from "./workspaceConnection";
 import type { ColumnSetResult, HostSnapshot, ViewerHost } from "./types";
 
 interface WorkspaceLike {
@@ -78,7 +79,7 @@ const emptySnapshot = (): HostSnapshot => ({
   connectionFailed: false,
 });
 
-export async function createTrimbleHost(): Promise<ViewerHost> {
+export async function createTrimbleHost(connection?: WorkspaceConnection): Promise<ViewerHost> {
   const listeners = new Set<() => void>();
   let ticket = 0;
   let selectionId = 0;
@@ -113,11 +114,10 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
     if (parsed.self) return;
     gate.push(parsed.groups);
   };
-  const api = await connect(
-    window.parent,
-    onEvent as Parameters<typeof connect>[1],
-    10000,
-  ) as unknown as WorkspaceLike;
+  const api = connection
+    ? connection.api as unknown as WorkspaceLike
+    : await connect(window.parent, onEvent as Parameters<typeof connect>[1], 10000) as unknown as WorkspaceLike;
+  if (connection) connection.subscribe(onEvent);
 
   async function applySelection(groups: SelectionGroup[]): Promise<void> {
     const mine = ++ticket;
