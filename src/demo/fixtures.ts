@@ -52,7 +52,7 @@ const catalog: CatalogEntry[] = [
       class: "IfcColumn",
       product: { name: "HEB180", objectType: "Pilar" },
       properties: [
-        { name: "Identificação", properties: [text("Nome", "Pilar P1"), text("Marca", "P1")] },
+        { name: "Identificação", properties: [text("Nome", "Pilar P1"), text("Marca", "P1"), text("Conjunto", "ZSCA10-0"), text("Desenho", "3221.01-ZSCA10")] },
         { name: "Perfil", properties: [text("Nome", "HEB180"), length("Altura", 180), length("Largura", 180)] },
         { name: "Material", properties: [text("Tipo", "Aço"), text("Grau", "S355")] },
         { name: "Quantidades", properties: [length("Comprimento", 3200), mass("Peso", 163.8), area("Área", 1.84)] },
@@ -67,7 +67,7 @@ const catalog: CatalogEntry[] = [
       class: "IfcBeam",
       product: { name: "HEA200", objectType: "Viga" },
       properties: [
-        { name: "Identificação", properties: [text("Nome", "Viga V1"), text("Marca", "V1")] },
+        { name: "Identificação", properties: [text("Nome", "Viga V1"), text("Marca", "V1"), text("Conjunto", "ZSCA11-0"), text("Desenho", "3221.01-ZSCA11")] },
         { name: "Perfil", properties: [text("Nome", "HEA200"), length("Altura", 190), length("Largura", 200)] },
         { name: "Material", properties: [text("Tipo", "Aço"), text("Grau", "S275JR")] },
         { name: "Quantidades", properties: [length("Comprimento", 6000), mass("Peso", 253.8), area("Área", 3.72)] },
@@ -82,7 +82,7 @@ const catalog: CatalogEntry[] = [
       class: "IfcColumn",
       product: { name: "HEB180", objectType: "Pilar" },
       properties: [
-        { name: "Identificação", properties: [text("Nome", "Pilar P2"), text("Marca", "P2")] },
+        { name: "Identificação", properties: [text("Nome", "Pilar P2"), text("Marca", "P2"), text("Conjunto", "ZSCA12-0"), text("Desenho", "3221.01-ZSCA12")] },
         { name: "Perfil", properties: [text("Nome", "HEB180"), length("Altura", 180), length("Largura", 180)] },
         { name: "Material", properties: [text("Tipo", "Aço"), text("Grau", "S355")] },
         { name: "Quantidades", properties: [length("Comprimento", 3200), mass("Peso", 163.8), area("Área", 1.84)] },
@@ -97,7 +97,7 @@ const catalog: CatalogEntry[] = [
       class: "IfcBeam",
       product: { name: "HEA200", objectType: "Viga" },
       properties: [
-        { name: "Identificação", properties: [text("Nome", "Viga V2"), text("Marca", "V2")] },
+        { name: "Identificação", properties: [text("Nome", "Viga V2"), text("Marca", "V2"), text("Conjunto", "ZSCA13-0"), text("Desenho", "3221.01-ZSCA13")] },
         { name: "Perfil", properties: [text("Nome", "HEA200"), length("Altura", 190), length("Largura", 200)] },
         { name: "Material", properties: [text("Tipo", "Aço"), text("Grau", "S275JR")] },
         { name: "Quantidades", properties: [length("Comprimento", 6000), mass("Peso", 253.8), area("Área", 3.72)] },
@@ -112,7 +112,7 @@ const catalog: CatalogEntry[] = [
       class: "IfcColumn",
       product: { name: "HEB180", objectType: "Pilar" },
       properties: [
-        { name: "Identificação", properties: [text("Nome", "Pilar P3"), text("Marca", "P3")] },
+        { name: "Identificação", properties: [text("Nome", "Pilar P3"), text("Marca", "P3"), text("Conjunto", "ZSCA14-0"), text("Desenho", "3221.01-ZSCA14")] },
         { name: "Perfil", properties: [text("Nome", "HEB180"), length("Altura", 180), length("Largura", 180)] },
         { name: "Material", properties: [text("Tipo", "Aço"), text("Grau", "S355")] },
         { name: "Quantidades", properties: [length("Comprimento", 3200), mass("Peso", 163.8), area("Área", 1.84)] },
@@ -127,7 +127,7 @@ const catalog: CatalogEntry[] = [
       class: "IfcSlab",
       product: { name: "Laje maciça", objectType: "Laje" },
       properties: [
-        { name: "Identificação", properties: [text("Nome", "Laje L1"), text("Marca", "L1")] },
+        { name: "Identificação", properties: [text("Nome", "Laje L1"), text("Marca", "L1"), text("Conjunto", "LAJE-L1"), text("Desenho", "Laje")] },
         { name: "Material", properties: [text("Tipo", "Betão"), text("Grau", "C30/37")] },
         {
           name: "Quantidades",
@@ -144,7 +144,7 @@ const catalog: CatalogEntry[] = [
       class: "IfcPlate",
       product: { name: "Chapa 20 mm", objectType: "Chapa" },
       properties: [
-        { name: "Identificação", properties: [text("Nome", "Chapa CH1"), text("Marca", "CH1")] },
+        { name: "Identificação", properties: [text("Nome", "Chapa CH1"), text("Marca", "CH1"), text("Conjunto", "ZSCA1-0"), text("Desenho", "3221.01-ZSCA1")] },
         { name: "Perfil", properties: [text("Nome", "PL20"), length("Altura", 20), length("Largura", 400)] },
         { name: "Material", properties: [text("Tipo", "Aço"), text("Grau", "S235")] },
         { name: "Quantidades", properties: [length("Comprimento", 400), mass("Peso", 25.1), area("Área", 0.16)] },
@@ -159,7 +159,7 @@ const catalog: CatalogEntry[] = [
       class: "IfcRailing",
       product: { name: "Guarda-corpos", objectType: "Guarda" },
       properties: [
-        { name: "Identificação", properties: [text("Nome", "Guarda GC1"), text("Marca", "GC1")] },
+        { name: "Identificação", properties: [text("Nome", "Guarda GC1"), text("Marca", "GC1"), text("Conjunto", "ZSCA2-0"), text("Desenho", "3221.01-ZSCA2")] },
         { name: "Perfil", properties: [text("Nome", "Tubo 48.3×3.2"), length("Altura", 1100), length("Largura", 48)] },
         { name: "Material", properties: [text("Tipo", "Aço"), text("Grau", "S235")] },
         { name: "Quantidades", properties: [length("Comprimento", 12000), mass("Peso", 86.4), area("Área", 2.1)] },

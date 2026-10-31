@@ -27,6 +27,8 @@ export interface ViewerHost {
   clearLabels(): Promise<void>;
   isolate(objects: InquiredObject[], color: string): Promise<void>;
   resetAppearance(): Promise<void>;
+  projectId(): Promise<string>;
+  listAllObjects(): Promise<InquiredObject[]>;
 }
 
 export interface DemoHost extends ViewerHost {

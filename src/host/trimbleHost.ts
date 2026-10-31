@@ -10,8 +10,12 @@ interface WorkspaceLike {
     getColumnSets: () => Promise<Array<{ name: string; columns: Array<{ field: string; label?: string }> }>>;
     getConfig: () => Promise<{ columnSet?: { name?: string } }>;
   };
+  project?: {
+    getProject: () => Promise<{ id?: string }>;
+  };
   viewer: {
     getSelection: () => Promise<SelectionGroup[]>;
+    getObjects: () => Promise<Array<{ modelId: string; objects?: Array<{ id: number }> }>>;
     getObjectProperties: (modelId: string, objectRuntimeIds: number[]) => Promise<Array<{
       id: number;
       class?: string;
@@ -183,6 +187,27 @@ export async function createTrimbleHost(): Promise<ViewerHost> {
       snapshot = { ...snapshot, isolated: false, isolatedRuntimeIds: [], highlightColor: null, error: "" };
       notify();
     },
+    async projectId() {
+      try {
+        const project = await api.project?.getProject();
+        return project?.id || "projeto";
+      } catch {
+        return "projeto";
+      }
+    },
+    async listAllObjects() {
+      const listed = await api.viewer.getObjects();
+      const objects = [];
+      for (const model of listed ?? []) {
+        const ids = (model.objects ?? []).map((object) => object.id).filter((id) => Number.isFinite(id)).slice(0, 3000);
+        for (let start = 0; start < ids.length; start += 200) {
+          const chunk = ids.slice(start, start + 200);
+          const properties = await api.viewer.getObjectProperties(model.modelId, chunk);
+          for (const raw of properties) objects.push(toInquiredObject(model.modelId, raw, null));
+        }
+      }
+      return objects;
+    },
   };
 
   async function loadColumnSets(): Promise<ColumnSetResult | null> {
@@ -273,5 +298,7 @@ export function connectionFailureHost(message: string): ViewerHost {
     clearLabels: async () => undefined,
     isolate: async () => undefined,
     resetAppearance: async () => undefined,
+    projectId: async () => "desligado",
+    listAllObjects: async () => [],
   };
 }

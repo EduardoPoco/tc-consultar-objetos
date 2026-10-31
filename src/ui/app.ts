@@ -1,4 +1,6 @@
 import { toCsv } from "../domain/csv";
+import { applyFabrication, buildDataset, type FabricationDataset, type SavedMapping, type SheetTable } from "../domain/fabric";
+import { clearDataset, loadDataset, loadMappings, saveDataset, saveMappings } from "../domain/fabricStore";
 import { buildLabelText } from "../domain/labels";
 import {
   columnsToItems,
@@ -23,9 +25,10 @@ import { formatValue } from "../domain/format";
 import type { DemoPiece } from "../demo/fixtures";
 import type { ViewerHost } from "../host/types";
 import { isDemoHost } from "../host/types";
+import { fabricoDetailHtml, filterMappingRows, readFabricForm, reportHtml } from "./fabrico";
 import { escapeHtml, plural } from "./html";
-
-type TabId = "consultar" | "tabela" | "definicoes" | "conjuntos" | "acerca";
+import { readWorkbook } from "../domain/workbook";
+type TabId = "consultar" | "tabela" | "definicoes" | "conjuntos" | "fabrico" | "acerca";
 
 interface UiState {
   tab: TabId;
@@ -39,6 +42,12 @@ interface UiState {
   sets: NamedPropertySet[];
   labelsActive: boolean;
   feedback: string;
+  projectId: string;
+  dataset: FabricationDataset | null;
+  table: SheetTable | null;
+  buffer: ArrayBuffer | null;
+  catalog: InquiredObject[];
+  fileName: string;
 }
 
 const TABS: Array<{ id: TabId; label: string }> = [
@@ -46,6 +55,7 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: "tabela", label: "Tabela" },
   { id: "definicoes", label: "Definições" },
   { id: "conjuntos", label: "Conjuntos" },
+  { id: "fabrico", label: "Fabrico" },
   { id: "acerca", label: "Acerca" },
 ];
 
@@ -70,7 +80,15 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
     sets: loadSets(localStorage),
     labelsActive: false,
     feedback: "",
+    projectId: "demonstracao",
+    dataset: null,
+    table: null,
+    buffer: null,
+    catalog: [],
+    fileName: "",
   };
+  ui.projectId = await host.projectId();
+  ui.dataset = loadDataset(localStorage, ui.projectId);
 
   const columnInfo = await host.loadColumnSets();
   if (columnInfo && columnInfo.sets.length > 0) {
@@ -110,8 +128,9 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
       do {
         relabel = false;
         const snapshot = host.snapshot();
-        const chosen = currentItems(ui, snapshot.objects).filter((item) => ui.checked.has(item.key));
-        const payloads = snapshot.objects.flatMap((object) => {
+        const objects = snapshot.objects.map((object) => applyFabrication(object, ui.dataset));
+        const chosen = currentItems(ui, objects).filter((item) => ui.checked.has(item.key));
+        const payloads = objects.flatMap((object) => {
           const text = buildLabelText(object, chosen, ui.settings);
           if (!text.trim()) return [];
           return [{
@@ -271,6 +290,9 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
       if (action === "select-clear" && isDemoHost(viewer)) viewer.clearSelection();
       if (action === "select-sample" && isDemoHost(viewer)) viewer.select([2, 1, 3], "set");
       if (action === "select-many" && isDemoHost(viewer)) viewer.selectMany();
+      if (action === "apply-import") void onApplyImport();
+      if (action === "save-mapping") onSaveMapping();
+      if (action === "clear-import") onClearImport();
       if (action === "piece" && isDemoHost(viewer)) {
         const id = Number(target.closest<HTMLElement>("[data-runtime-id]")?.dataset.runtimeId);
         if (!Number.isFinite(id)) return;
@@ -321,13 +343,15 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
         if (state.labelsActive) void refreshLabels();
         else sync();
       }
+      if (target.id === "ficheiro-fabrico" && target.files?.[0]) void onFabricFile(target.files[0]);
+      if (target.id === "linha-cabecalho") void reparseFabric(Number(target.value));
     });
 
     scope.addEventListener("input", (event) => {
       const target = event.target as HTMLInputElement;
       if (target.id === "search") {
         state.filter = target.value;
-        paintTable(scope, state, viewer.snapshot().objects);
+        paintTable(scope, state, viewer.snapshot().objects.map((object) => applyFabrication(object, state.dataset)));
         return;
       }
       if (target.id === "label-color" || target.id === "highlight-color") {
@@ -335,7 +359,83 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
         const swatch = scope.querySelector<HTMLElement>("#highlight-swatch");
         if (swatch) swatch.style.background = state.settings.highlightColor;
       }
+      if (target.id === "filtrar-colunas") filterMappingRows(scope, target.value);
     });
+  }
+
+  async function onFabricFile(file: File): Promise<void> {
+    ui.fileName = file.name;
+    ui.buffer = await file.arrayBuffer();
+    ui.catalog = await host.listAllObjects();
+    ui.table = readWorkbook(ui.buffer);
+    const header = root.querySelector<HTMLInputElement>("#linha-cabecalho");
+    if (header) header.value = String(ui.table.headerRow);
+    const map = root.querySelector("#fabrico-mapa");
+    if (map) map.innerHTML = fabricoDetailHtml(ui.table, discoverItems(ui.catalog), loadMappings(localStorage));
+    sync();
+  }
+
+  function reparseFabric(headerRow: number): void {
+    if (!ui.buffer) return;
+    ui.table = readWorkbook(ui.buffer, headerRow > 0 ? headerRow : undefined);
+    const header = root.querySelector<HTMLInputElement>("#linha-cabecalho");
+    if (header && document.activeElement !== header) header.value = String(ui.table.headerRow);
+    const map = root.querySelector("#fabrico-mapa");
+    if (map) map.innerHTML = fabricoDetailHtml(ui.table, discoverItems(ui.catalog), loadMappings(localStorage));
+    sync();
+  }
+
+  async function onApplyImport(): Promise<void> {
+    if (!ui.table) return;
+    const form = readFabricForm(root, ui.table);
+    if (!form) return;
+    if (ui.catalog.length === 0) ui.catalog = await host.listAllObjects();
+    try {
+      ui.dataset = buildDataset({
+        table: ui.table,
+        keyColumn: form.keyColumn,
+        keyProperty: form.keyProperty,
+        fields: form.fields,
+        objects: ui.catalog,
+        projectId: ui.projectId,
+        fileName: ui.fileName || ui.table.sheetName,
+      });
+      saveDataset(localStorage, ui.dataset);
+      ui.feedback = "Dados de fabrico aplicados neste navegador.";
+    } catch (error) {
+      ui.feedback = error instanceof Error ? error.message : "Não foi possível guardar a importação.";
+    }
+    sync();
+  }
+
+  function onSaveMapping(): void {
+    if (!ui.table) return;
+    const form = readFabricForm(root, ui.table);
+    if (!form) return;
+    const column = ui.table.columns.find((item) => item.index === form.keyColumn);
+    const mapping: SavedMapping = {
+      id: globalThis.crypto?.randomUUID?.() ?? `mapa-${Date.now()}`,
+      name: form.mappingName,
+      headerRow: ui.table.headerRow,
+      keyColumnName: column?.name ?? "",
+      keyProperty: form.keyProperty,
+      columns: form.fields.map((field) => ({
+        columnName: field.columnName,
+        setName: field.setName,
+        propertyName: field.propertyName,
+      })),
+    };
+    const mappings = loadMappings(localStorage).filter((item) => item.name !== mapping.name);
+    saveMappings(localStorage, [...mappings, mapping]);
+    ui.feedback = `Mapeamento «${mapping.name}» guardado neste navegador.`;
+    sync();
+  }
+
+  function onClearImport(): void {
+    clearDataset(localStorage, ui.projectId);
+    ui.dataset = null;
+    ui.feedback = "Dados de fabrico removidos deste navegador.";
+    sync();
   }
 }
 
@@ -354,11 +454,14 @@ function keyOf(host: ViewerHost): string {
 }
 
 function currentItems(state: UiState, objects: InquiredObject[]): PropItem[] {
-  if (state.activeSetName) {
-    const set = state.columnSets.find((item) => item.name === state.activeSetName);
-    if (set) return sortItems(columnsToItems(set.columns), state.sort);
-  }
-  return sortItems(discoverItems(objects), state.sort);
+  const columnSet = state.activeSetName
+    ? state.columnSets.find((item) => item.name === state.activeSetName)
+    : undefined;
+  const base = columnSet ? columnsToItems(columnSet.columns) : discoverItems(objects);
+  const imported = discoverItems(objects).filter((item) => state.dataset?.records.some((record) =>
+    record.values.some((value) => value.setName === item.setName && value.name === item.name))
+    && !base.some((existing) => existing.key === item.key));
+  return sortItems([...base, ...imported], state.sort);
 }
 
 function visibleRows(state: UiState, objects: InquiredObject[]): PropItem[] {
@@ -367,14 +470,17 @@ function visibleRows(state: UiState, objects: InquiredObject[]): PropItem[] {
 
 function paint(root: HTMLElement, host: ViewerHost, state: UiState): void {
   const snapshot = host.snapshot();
-  const items = currentItems(state, snapshot.objects);
+  const objects = snapshot.objects.map((object) => applyFabrication(object, state.dataset));
+  const items = currentItems(state, objects);
   paintTabs(root, state.tab);
   paintBanner(root, snapshot.error, snapshot.connectionFailed);
   paintWarning(root, snapshot.totalSelected, snapshot.objects.length);
   paintSource(root, state, snapshot.objects.length);
-  paintChecklist(root, items, state.checked, snapshot.loading, snapshot.objects, host.mode);
+  paintChecklist(root, items, state.checked, snapshot.loading, objects, host.mode);
   paintActions(root, state, snapshot.objects.length, snapshot.isolated, snapshot.labels.length);
-  paintTable(root, state, snapshot.objects);
+  paintTable(root, state, objects);
+  const report = root.querySelector("#fabrico-relatorio");
+  if (report) report.innerHTML = reportHtml(state.dataset?.report ?? null, state.dataset?.fileName ?? "");
   paintSets(root, state);
   paintPieces(root, host);
   paintFooter(root, host.mode, snapshot);
@@ -747,11 +853,22 @@ function shell(host: ViewerHost): string {
         </label>
         <div id="sets-list" class="sets" data-testid="lista-conjuntos"></div>
       </div>
+      <div id="panel-fabrico" role="tabpanel" aria-labelledby="tab-fabrico" hidden>
+        <p class="hint">Importe um Excel ou CSV de fabrico. A coluna chave liga cada linha a um objeto (por exemplo Conjunto). Os valores ficam neste navegador, por projeto, e aparecem nas etiquetas e na tabela. Não são gravados no ficheiro do modelo.</p>
+        <label class="field">Ficheiro
+          <input id="ficheiro-fabrico" data-testid="ficheiro-fabrico" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" />
+        </label>
+        <label class="field">Linha de cabeçalho
+          <input id="linha-cabecalho" data-testid="linha-cabecalho" type="number" min="1" value="8" />
+        </label>
+        <div id="fabrico-relatorio"></div>
+        <div id="fabrico-mapa"></div>
+      </div>
       <div id="panel-acerca" role="tabpanel" aria-labelledby="tab-acerca" hidden>
         <div class="about">
           <p><strong>Consultar Objetos</strong> · versão ${APP_VERSION}</p>
           <p>Extensão do visualizador 3D do Trimble Connect para consultar peças do modelo: etiquetas junto dos objetos, tabela comparativa e CSV para aprovisionamento.</p>
-          <p>Inspirada no Inquire Objects da Construsoft, sem depender dessa licença. Os conjuntos de propriedades ficam guardados apenas neste navegador.</p>
+          <p>Inspirada no Inquire Objects da Construsoft, sem depender dessa licença. Os conjuntos de propriedades e os dados de fabrico ficam guardados apenas neste navegador.</p>
           <ul>
             <li>No máximo ${MAX_OBJECTS} objetos por consulta.</li>
             <li>As unidades seguem a API: comprimentos em mm, áreas em m², volumes em m³, massas em kg.</li>

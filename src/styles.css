@@ -88,7 +88,7 @@ button { cursor: pointer; }
   min-height: 0;
 }
 
-#panel-consultar, #panel-tabela, #panel-definicoes, #panel-conjuntos, #panel-acerca { flex: 1; }
+#panel-consultar, #panel-tabela, #panel-definicoes, #panel-conjuntos, #panel-fabrico, #panel-acerca { flex: 1; }
 
 .source, .hint, .muted, .feedback { font-size: 13px; color: var(--muted); line-height: 1.4; }
 .feedback { min-height: 1.2em; color: var(--blue-deep); }
@@ -204,6 +204,15 @@ legend { padding: 0 4px; font-size: 13px; }
 .pill { font-size: 11px; background: #e7f2fa; color: var(--blue); border-radius: 99px; padding: 2px 8px; }
 
 .about p, .about li { font-size: 14px; line-height: 1.45; }
+
+.map-scroll { max-height: 280px; margin: 8px 0; }
+.map-table input { width: 100%; border: 1px solid #b7c6d2; border-radius: 4px; padding: 4px 6px; }
+.map-table .dest { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
+.map-table td:first-child { width: 28px; }
+.report { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+.report h2 { margin: 0 0 4px; font-size: 14px; }
+.report ul { margin: 6px 0 0; padding-left: 18px; }
+.report li { margin: 2px 0; font-size: 13px; }
 .about ul { padding-left: 18px; }
 
 .panel-footer {

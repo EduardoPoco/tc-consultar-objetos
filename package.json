@@ -12,7 +12,8 @@
     "check": "npm test && npm run test:e2e && npm run build"
   },
   "dependencies": {
-    "trimble-connect-workspace-api": "0.3.38"
+    "trimble-connect-workspace-api": "0.3.38",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

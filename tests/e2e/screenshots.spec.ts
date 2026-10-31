@@ -64,6 +64,22 @@ test("06 isolar e colorir", async ({ page }) => {
   await shot(page, "06-isolar-e-colorir.png");
 });
 
+test("08 mapeamento de colunas", async ({ page }) => {
+  await page.getByRole("tab", { name: "Fabrico" }).click();
+  await page.getByTestId("ficheiro-fabrico").setInputFiles("tests/fixtures/fabrico-mini.xlsx");
+  await page.getByTestId("filtrar-colunas").fill("Corte");
+  await expect(page.getByTestId("tabela-mapeamento").getByText("Corte · Data", { exact: true })).toBeVisible();
+  await shot(page, "08-mapeamento-colunas.png");
+});
+
+test("09 relatório de correspondência", async ({ page }) => {
+  await page.getByRole("tab", { name: "Fabrico" }).click();
+  await page.getByTestId("ficheiro-fabrico").setInputFiles("tests/fixtures/fabrico-mini.xlsx");
+  await page.getByTestId("aplicar-importacao").click();
+  await expect(page.getByTestId("relatorio")).toContainText("Laje L1");
+  await shot(page, "09-relatorio-correspondencia.png");
+});
+
 test("07 conjuntos de propriedades", async ({ page }) => {
   await page.getByRole("tab", { name: "Definições" }).click();
   await page.getByTestId("conjunto-colunas").selectOption("");

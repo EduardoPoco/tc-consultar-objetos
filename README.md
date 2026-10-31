@@ -62,6 +62,22 @@ Os conjuntos ficam em `localStorage`, neste computador e neste endereço. Não s
 
 ![Conjunto de aço em uso e conjunto de betão guardado](docs/imagens/07-conjuntos-de-propriedades.png)
 
+### 8. Importar o Excel de fabrico
+
+No separador **Fabrico**, escolha um `.xlsx` ou `.csv`. A linha de cabeçalho é detetada (na folha de produção de exemplo é a linha 8; as linhas anteriores são título, cliente e totais) e pode ser corrigida à mão. As colunas repetidas, como Data ou %, ficam com o nome do grupo que está por cima: `Corte · Data`, `Expedição · %`.
+
+A coluna chave (por exemplo **Conjunto**) liga cada linha à propriedade do modelo que escolher (no modo de demonstração, `Identificação / Conjunto`, com marcas como `ZSCA11-0`). As outras colunas mapeiam-se para um conjunto de propriedades, por omissão `Fabrico`. **Guardar mapeamento** memoriza esta correspondência neste navegador.
+
+![Mapeamento das colunas do Excel, com a chave Conjunto e a coluna Corte · Data](docs/imagens/08-mapeamento-colunas.png)
+
+**Aplicar importação** grava os valores e mostra o relatório: linhas com objeto, linhas sem objeto e objetos sem linha. Quando a mesma marca aparece em várias linhas, fica a linha de tipo Conjunto.
+
+![Relatório com 7 objetos ligados, linhas ZSCA99-0 e ZSCA15-0 por ligar e a laje sem linha](docs/imagens/09-relatorio-correspondencia.png)
+
+Uma célula de data com várias entradas (`17/09/2026 - 149` e `18/09/2026 - 13`) passa a ser a última data e a quantidade somada (`18/09/2026 · 162`). As percentagens entram como progresso da etapa.
+
+Estes dados **não são escritos no ficheiro do modelo**. Ficam neste navegador, separados por projeto, e passam a aparecer nas etiquetas, na tabela e nas cores como se fossem propriedades. Para os gravar de forma permanente no Trimble Connect seria preciso um token (`extension.requestPermission("accesstoken")`) e a API de property sets, em geral com uma aplicação na Developer Console. Isso não está incluído.
+
 ## Instalar no Trimble Connect
 
 É preciso um **plano pago** do Trimble Connect e ser **administrador do projeto**. Numa conta gratuita, a opção de extensões personalizadas não aparece.

@@ -81,6 +81,15 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       highlightColor = null;
       notify();
     },
+    async projectId() {
+      return "demonstracao";
+    },
+    async listAllObjects() {
+      return demoPieces().flatMap((piece) => {
+        const entry = findDemoEntry(piece.runtimeId);
+        return entry ? [toInquiredObject(DEMO_MODEL_ID, entry.raw, entry.box)] : [];
+      });
+    },
     select(runtimeIds, how) {
       if (how === "set") {
         selected = [...runtimeIds];
