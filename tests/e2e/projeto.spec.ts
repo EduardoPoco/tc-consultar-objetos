@@ -20,10 +20,10 @@ test("abre o relatório filtrado pela obra do nome do projeto", async ({ page })
   await expect(page.getByTestId("atalho-relatorio")).toHaveText("Relatório de produção — Obra 3270");
   await expect(page.getByTestId("atalho-relatorio")).toHaveAttribute("target", "_blank");
   await expect(page.getByTestId("atalho-relatorio")).toHaveAttribute("href", /NObra=3270/);
-  await expect(page.getByTestId("relatorio-param")).toHaveValue("NObra");
-  await page.getByTestId("testar-relatorio").click();
-  await expect(page.getByTestId("url-relatorio")).toContainText("NObra=3270");
-  await expect(page.getByTestId("url-relatorio")).toContainText("192.168.1.9");
+  await expect(page.getByTestId("atalho-relatorio")).toHaveAttribute("href", /192\.168\.1\.9/);
+  await expect(page.getByText("Endereço base")).toHaveCount(0);
+  await expect(page.getByTestId("testar-relatorio")).toHaveCount(0);
+  await expect(page.getByTestId("obra-manual")).toHaveCount(0);
 });
 
 test("pede o número da obra quando o projeto não começa por OB", async ({ page }) => {

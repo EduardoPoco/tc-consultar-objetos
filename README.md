@@ -80,7 +80,7 @@ Nome, identificador, região e utilizador atual (`project.getProject` e `user.ge
 
 O número da obra são os quatro dígitos a seguir a `OB` no nome do projeto (`OB3270-SNF-BC Metalnord` → 3270, também `ob3228 …`). Se o nome não começar assim, há um campo para o escrever; fica guardado nesse projeto.
 
-O atalho chama-se **Relatório de produção — Obra 3270** e abre noutro separador. O endereço base, o tipo (portal ou ReportServer) e o parâmetro são editáveis. O valor inicial do parâmetro é `NObra`, o nome interno de Nº Obra. **Testar** mostra o endereço gerado sem sair da página.
+O atalho chama-se **Relatório de produção — Obra 3270** e abre noutro separador. O endereço do portal e o parâmetro `NObra` estão fixos no código. O separador chama-se **Relatório Produção**.
 
 O relatório está em HTTP na rede interna (`192.168.1.9`). A extensão está em HTTPS no GitHub Pages. O browser não deixa meter essa página dentro da extensão (conteúdo misto), por isso o atalho tem de abrir num separador novo e só funciona na rede da empresa.
 
