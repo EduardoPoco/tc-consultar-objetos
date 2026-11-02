@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("mostra o painel vazio e pede para selecionar objetos", async ({ page }) => {
-  await expect(page.getByRole("heading", { name: "Consultar Objetos" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "POÇO" })).toBeVisible();
   await expect(page.getByTestId("contagem")).toHaveText("Nenhum objeto na consulta");
   await expect(page.getByTestId("origem")).toContainText("Propriedades encontradas");
   await page.getByRole("tab", { name: "Definições" }).click();

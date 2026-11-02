@@ -14,6 +14,8 @@ import {
 } from "../domain/properties";
 import { loadColumnSetChoice, loadSets, loadSettings, saveColumnSetChoice, saveSets, saveSettings, upsertSet } from "../domain/storage";
 import {
+  APP_NAME,
+  APP_SUBTITLE,
   APP_VERSION,
   TABLE_PAGE_SIZE,
   type ColumnSet,
@@ -984,8 +986,8 @@ function shell(host: ViewerHost): string {
       <header class="panel-header">
         <img src="${icon}" alt="" width="36" height="36" />
         <div>
-          <h1>Consultar Objetos</h1>
-          <p>Propriedades dos objetos selecionados</p>
+          <h1>${APP_NAME}</h1>
+          <p>${APP_SUBTITLE}</p>
         </div>
       </header>
       <div id="banner"></div>
@@ -1104,7 +1106,7 @@ function shell(host: ViewerHost): string {
       </div>
       <div id="panel-acerca" role="tabpanel" aria-labelledby="tab-acerca" hidden>
         <div class="about">
-          <p><strong>Consultar Objetos</strong> · versão ${APP_VERSION}</p>
+          <p><strong>${APP_NAME}</strong> · ${APP_SUBTITLE} · versão ${APP_VERSION}</p>
           <p>Extensão do visualizador 3D do Trimble Connect para consultar peças do modelo: etiquetas junto dos objetos, tabela comparativa e CSV para aprovisionamento.</p>
           <p>Inspirada no Inquire Objects da Construsoft, sem depender dessa licença.${storedLocally()}</p>
           <ul>

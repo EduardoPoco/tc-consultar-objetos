@@ -13,7 +13,7 @@ async function shot(page: Page, name: string): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/?demo=1");
-  await expect(page.getByRole("heading", { name: "Consultar Objetos" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "POÇO" })).toBeVisible();
 });
 
 test("01 painel sem seleção", async ({ page }) => {

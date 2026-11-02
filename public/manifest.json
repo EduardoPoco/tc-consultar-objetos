@@ -1,8 +1,8 @@
 {
   "icon": "https://eduardopoco.github.io/tc-consultar-objetos/icon.png",
-  "title": "Consultar Objetos",
+  "title": "POÇO",
   "url": "https://eduardopoco.github.io/tc-consultar-objetos/",
-  "description": "Consulta objetos no visualizador 3D e, no menu do projeto, mostra a obra, os modelos e ligações.",
+  "description": "Consulta objetos no visualizador 3D e abre o relatório de produção na página do projeto.",
   "infoUrl": "https://github.com/EduardoPoco/tc-consultar-objetos#como-usar",
   "enabled": true,
   "extensionType": ["project", "3dviewer"]

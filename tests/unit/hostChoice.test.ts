@@ -15,7 +15,7 @@ describe("escolha do anfitrião", () => {
 
   it("o menu do projeto tem título, ícone PNG, comando e submenus", () => {
     const menu = projectMenu("https://eduardopoco.github.io/tc-consultar-objetos/icon.png");
-    expect(menu.title).toBe("Consultar Objetos");
+    expect(menu.title).toBe("POÇO");
     expect(menu.command).toBe("consultar-objetos");
     expect(menu.icon.endsWith(".png")).toBe(true);
     expect(menu.subMenus.map((item) => item.command)).toEqual(["projeto", "relatorio", "ajuda"]);

@@ -1,6 +1,6 @@
-# Consultar Objetos
+# POÇO
 
-Extensão para o visualizador 3D do Trimble Connect. Mostra as propriedades dos objetos selecionados, coloca etiquetas no modelo e exporta uma tabela para o Excel. Serve para consultar peças em obra e em aprovisionamento, no computador.
+Extensão para o visualizador 3D do Trimble Connect. No Trimble Connect o nome é **POÇO**, com o subtítulo «Consultar objetos». Mostra as propriedades dos objetos selecionados, coloca etiquetas no modelo e exporta uma tabela para o Excel. Serve para consultar peças em obra e em aprovisionamento, no computador.
 
 Funciona dentro do Trimble Connect, no menu do projeto e no visualizador 3D, e fora dele num modo de demonstração.
 
@@ -14,7 +14,7 @@ Se o menu da esquerda continuar vazio, há um segundo manifesto só de projeto: 
 
 ## Como usar
 
-Abra o modelo no visualizador 3D e escolha **Consultar Objetos** nas extensões. Fora do Trimble Connect, abra a página da extensão: o painel é o mesmo e a planta da direita substitui o visualizador.
+Abra o modelo no visualizador 3D e escolha **POÇO** nas extensões. Fora do Trimble Connect, abra a página da extensão: o painel é o mesmo e a planta da direita substitui o visualizador.
 
 ### 1. Painel sem seleção
 
@@ -106,7 +106,7 @@ A página resume os passos do painel 3D: abrir o modelo, escolher a extensão, e
 
 6. Confirme com **Add**.
 7. Abra um modelo no visualizador 3D.
-8. Abra a extensão **Consultar Objetos** no painel de extensões do visualizador. No projeto, o mesmo nome aparece no menu da esquerda.
+8. Abra a extensão **POÇO** no painel de extensões do visualizador. No projeto, o mesmo nome aparece no menu da esquerda.
 
 Se a extensão já estava instalada só como visualizador 3D, retire-a em **Apps & Capabilities** e volte a adicioná-la com o mesmo manifesto. O Trimble Connect guarda o tipo da extensão no momento em que ela é adicionada; um simples recarregar pode não criar a entrada do menu do projeto. Depois, recarregue o separador sem cache (o Pages guarda a página durante 10 minutos).
 

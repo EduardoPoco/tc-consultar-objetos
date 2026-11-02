@@ -1,7 +1,7 @@
 import type { ProjectFileItem } from "../domain/files";
 import { isHttpUrl, loadLinks, saveLinks, upsertLink, type ExternalLink } from "../domain/links";
 import { DEFAULT_REPORT, buildReportUrl, jobNumberFromName, loadManualJob, saveManualJob } from "../domain/report";
-import { APP_VERSION } from "../domain/types";
+import { APP_NAME, APP_VERSION } from "../domain/types";
 import type { ProjectDetails, ProjectUser } from "../domain/project";
 import { diagnosticsHtml } from "../host/diagnostics";
 import type { ProjectPageSource } from "../host/projectTypes";
@@ -213,7 +213,7 @@ function pageHtml(state: {
     <header class="project-header">
       <img src="${icon}" alt="" width="40" height="40" />
       <div>
-        <h1>Consultar Objetos</h1>
+        <h1>${APP_NAME}</h1>
         <p>Página do projeto</p>
       </div>
     </header>
@@ -241,7 +241,7 @@ function helpHtml(): string {
       <li>${FEATURES.modelos
         ? "Nesta página, em <strong>Modelos</strong>, abra o ficheiro no visualizador 3D. Também pode abrir o modelo pelo Trimble Connect."
         : "Abra um modelo no visualizador 3D do Trimble Connect."}</li>
-      <li>No visualizador, escolha a extensão <strong>Consultar Objetos</strong>.</li>
+      <li>No visualizador, escolha a extensão <strong>${APP_NAME}</strong>.</li>
       <li>Selecione as peças. A lista inclui as propriedades do modelo e o grupo <strong>Produto</strong> (nome, descrição, tipo e classe).</li>
       <li>Marque o que quer ver e use <strong>Mostrar etiquetas</strong>. Não há limite: as etiquetas são criadas em lotes. <strong>Limpar etiquetas</strong> remove todas as desta extensão.</li>
       <li>No separador <strong>Tabela</strong>, cada peça é uma linha e o total soma todas. <strong>Exportar CSV</strong> usa o mesmo desenho.</li>

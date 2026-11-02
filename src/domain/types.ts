@@ -149,4 +149,6 @@ export const EXAMPLE_SET: NamedPropertySet = {
   keys: ["Perfil||Nome", "Material||Grau", "Quantidades||Peso"],
 };
 
+export const APP_NAME = "POÇO";
+export const APP_SUBTITLE = "Consultar objetos";
 export const APP_VERSION = "1.2.1";

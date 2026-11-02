@@ -1,6 +1,7 @@
 import type { ProjectDetails, ProjectUser } from "../domain/project";
 import { formatUser, locationLabel } from "../domain/project";
 import { demoFolder, demoProject, demoUser } from "../demo/projectDemo";
+import { APP_NAME } from "../domain/types";
 import { FEATURES } from "../features";
 import { extensionMenuIconUrl, type ProjectPageSource } from "./projectTypes";
 import { withTimeout } from "./hostChoice";
@@ -12,7 +13,7 @@ export const PROJECT_COMMANDS = ["consultar-objetos", "projeto", "modelos", "lig
 export function projectMenu(icon: string) {
   const item = (title: string, command: string) => ({ title, command, icon });
   return {
-    title: "Consultar Objetos",
+    title: APP_NAME,
     icon,
     command: "consultar-objetos",
     subMenus: [
@@ -35,7 +36,7 @@ export async function registerProjectMenu(connection: WorkspaceConnection): Prom
     return `falhou: ${message}`;
   }
   try {
-    await withTimeout(connection.api.extension.setStatusMessage("Consultar Objetos"), 2000);
+    await withTimeout(connection.api.extension.setStatusMessage(APP_NAME), 2000);
   } catch (error) {
     const message = error instanceof Error ? error.message : "setStatusMessage falhou";
     return `menu ok; estado falhou: ${message}`;
