@@ -20,6 +20,15 @@ test("01 painel sem seleção", async ({ page }) => {
   await shot(page, "01-painel-vazio.png");
 });
 
+test("02b pesquisa de peças", async ({ page }) => {
+  await page.getByRole("button", { name: "Viga V1" }).click();
+  await page.getByTestId("pesquisa-propriedade").selectOption({ label: "Perfil / Nome" });
+  await page.getByTestId("pesquisa-valor").fill("HEA200");
+  await page.getByTestId("pesquisar-pecas").click();
+  await expect(page.getByTestId("resultado-pesquisa")).toHaveText("2 peças encontradas.");
+  await shot(page, "16-pesquisa-pecas.png");
+});
+
 test("02 seleção com propriedades", async ({ page }) => {
   await page.getByRole("button", { name: "Viga V1" }).click();
   await expect(page.locator(".check", { has: page.getByRole("checkbox", { name: "Perfil / Nome" }) })).toContainText("HEA200");

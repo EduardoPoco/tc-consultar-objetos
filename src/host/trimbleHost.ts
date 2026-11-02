@@ -19,6 +19,7 @@ interface WorkspaceLike {
   viewer: {
     getSelection: () => Promise<SelectionGroup[]>;
     getObjects: () => Promise<Array<{ modelId: string; objects?: Array<{ id: number }> }>>;
+    setSelection: (selector: { modelObjectIds: Array<{ modelId: string; objectRuntimeIds: number[] }> }, mode: "set" | "add" | "remove") => Promise<void>;
     getObjectProperties: (modelId: string, objectRuntimeIds: number[]) => Promise<Array<{
       id: number;
       class?: string;
@@ -91,6 +92,7 @@ export async function createTrimbleHost(connection?: WorkspaceConnection): Promi
   let labelIds: number[] = [];
   let labels: TextLabel[] = [];
   let snapshot = { ...emptySnapshot(), loading: true };
+  const catalogCache = new Map<string, Map<number, ReturnType<typeof toInquiredObject>>>();
 
   const notify = () => {
     for (const listener of listeners) listener();
@@ -378,17 +380,21 @@ export async function createTrimbleHost(connection?: WorkspaceConnection): Promi
       }
     },
     async listAllObjects() {
-      const listed = await api.viewer.getObjects();
-      const objects = [];
-      for (const model of listed ?? []) {
-        const ids = (model.objects ?? []).map((object) => object.id).filter((id) => Number.isFinite(id));
-        for (let start = 0; start < ids.length; start += PROPERTY_BATCH) {
-          const chunk = ids.slice(start, start + PROPERTY_BATCH);
-          const properties = await api.viewer.getObjectProperties(model.modelId, chunk);
-          for (const raw of properties) objects.push(toInquiredObject(model.modelId, raw, null));
-        }
+      const loaded = await loadCatalog((_loaded, _total) => undefined, () => false);
+      return loaded.objects;
+    },
+    loadCatalog,
+    async selectObjects(refs) {
+      const groups = new Map<string, number[]>();
+      for (const ref of refs) {
+        const ids = groups.get(ref.modelId) ?? [];
+        ids.push(ref.runtimeId);
+        groups.set(ref.modelId, ids);
       }
-      return objects;
+      const selection = [...groups].map(([modelId, objectRuntimeIds]) => ({ modelId, objectRuntimeIds }));
+      gate.acknowledge(selection);
+      await api.viewer.setSelection({ modelObjectIds: selection }, "set");
+      await applySelection(selection);
     },
   };
 
@@ -406,6 +412,39 @@ export async function createTrimbleHost(connection?: WorkspaceConnection): Promi
     } catch {
       return null;
     }
+  }
+
+  async function loadCatalog(
+    onProgress: (loaded: number, total: number) => void,
+    shouldStop: () => boolean,
+  ): Promise<{ objects: ReturnType<typeof toInquiredObject>[]; cancelled: boolean }> {
+    const listed = await api.viewer.getObjects();
+    const plan = (listed ?? []).map((model) => {
+      const ids = (model.objects ?? []).map((object) => object.id).filter((id) => Number.isFinite(id));
+      const cached = catalogCache.get(model.modelId) ?? new Map<number, ReturnType<typeof toInquiredObject>>();
+      return { modelId: model.modelId, ids, cached, missing: ids.filter((id) => !cached.has(id)) };
+    });
+    const total = plan.reduce((sum, part) => sum + part.ids.length, 0);
+    let loaded = plan.reduce((sum, part) => sum + (part.ids.length - part.missing.length), 0);
+    onProgress(loaded, total);
+    const objects: ReturnType<typeof toInquiredObject>[] = [];
+    for (const part of plan) {
+      for (let start = 0; start < part.missing.length; start += PROPERTY_BATCH) {
+        if (shouldStop()) return { objects, cancelled: true };
+        const chunk = part.missing.slice(start, start + PROPERTY_BATCH);
+        const properties = await api.viewer.getObjectProperties(part.modelId, chunk);
+        for (const raw of properties) part.cached.set(raw.id, toInquiredObject(part.modelId, raw, null));
+        catalogCache.set(part.modelId, part.cached);
+        loaded += chunk.length;
+        onProgress(loaded, total);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      for (const id of part.ids) {
+        const object = part.cached.get(id);
+        if (object) objects.push(object);
+      }
+    }
+    return { objects, cancelled: false };
   }
 }
 
@@ -517,6 +556,8 @@ export function connectionFailureHost(message: string): ViewerHost {
     resetAppearance: async () => undefined,
     projectId: async () => "desligado",
     listAllObjects: async () => [],
+    loadCatalog: async () => ({ objects: [], cancelled: false }),
+    selectObjects: async () => undefined,
     colorByObject: async () => undefined,
     cancelLoad: () => undefined,
   };

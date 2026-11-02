@@ -37,6 +37,11 @@ export interface ViewerHost {
   resetAppearance(): Promise<void>;
   projectId(): Promise<string>;
   listAllObjects(): Promise<InquiredObject[]>;
+  loadCatalog(
+    onProgress: (loaded: number, total: number) => void,
+    shouldStop: () => boolean,
+  ): Promise<{ objects: InquiredObject[]; cancelled: boolean }>;
+  selectObjects(refs: Array<{ modelId: string; runtimeId: number }>): Promise<void>;
   colorByObject(entries: Array<{ modelId: string; runtimeId: number; color: string }>): Promise<void>;
   cancelLoad(): void;
 }

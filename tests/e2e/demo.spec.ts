@@ -32,6 +32,26 @@ test("mostra os atributos de produto à parte dos conjuntos de propriedades", as
   await expect(page.locator(".check-meta").first()).toContainText("Produto /");
 });
 
+test("pesquisa peças pelo valor e seleciona-as no modelo", async ({ page }) => {
+  await page.goto("/?demo=1");
+  await page.getByRole("button", { name: "Viga V1" }).click();
+  await page.getByTestId("pesquisa-propriedade").selectOption({ label: "Perfil / Nome" });
+  await page.getByTestId("pesquisa-valor").fill(" hea200 ");
+  await page.getByTestId("pesquisar-pecas").click();
+  await expect(page.getByTestId("resultado-pesquisa")).toHaveText("2 peças encontradas.");
+  await page.getByTestId("selecionar-encontradas").click();
+  await expect(page.getByTestId("contagem")).toContainText("2 objetos na consulta");
+  await expect(page.getByRole("checkbox", { name: "Perfil / Nome" })).toBeVisible();
+  await page.getByTestId("pesquisa-contem").check();
+  await page.getByTestId("pesquisa-valor").fill("heb");
+  await page.getByTestId("pesquisar-pecas").click();
+  await expect(page.getByTestId("resultado-pesquisa")).toHaveText("3 peças encontradas.");
+  await page.getByTestId("pesquisa-contem").uncheck();
+  await page.getByTestId("pesquisa-valor").fill("heb");
+  await page.getByTestId("pesquisar-pecas").click();
+  await expect(page.getByTestId("resultado-pesquisa")).toHaveText("0 peças encontradas.");
+});
+
 test("lê as propriedades do objeto selecionado", async ({ page }) => {
   await page.getByRole("button", { name: "Viga V1" }).click();
   await expect(page.getByTestId("contagem")).toContainText("1 objeto na consulta");

@@ -2,7 +2,7 @@ import { flattenSelection, toInquiredObject } from "../domain/properties";
 import type { LabelPayload, TextLabel } from "../domain/types";
 import { createSelectionGate } from "../host/selectionGate";
 import type { DemoHost, HostSnapshot } from "../host/types";
-import { DEMO_COLUMN_SETS, DEMO_MODEL_ID, demoPieces, findDemoEntry } from "./fixtures";
+import { DEMO_COLUMN_SETS, DEMO_MODEL_ID, demoCatalog, demoPieces, findDemoEntry } from "./fixtures";
 
 export interface DemoHostOptions {
   dataTable: boolean;
@@ -116,10 +116,16 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       return "demonstracao";
     },
     async listAllObjects() {
-      return demoPieces().flatMap((piece) => {
-        const entry = findDemoEntry(piece.runtimeId);
-        return entry ? [toInquiredObject(DEMO_MODEL_ID, entry.raw, entry.box)] : [];
-      });
+      return catalogObjects();
+    },
+    async loadCatalog(onProgress, shouldStop) {
+      const objects = catalogObjects();
+      if (shouldStop()) return { objects: [], cancelled: true };
+      onProgress(objects.length, objects.length);
+      return { objects, cancelled: false };
+    },
+    async selectObjects(refs) {
+      this.select(refs.map((ref) => ref.runtimeId), "set");
     },
     select(runtimeIds, how) {
       selectionId += 1;
@@ -155,6 +161,14 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
       return reads;
     },
   };
+}
+
+function catalogObjects() {
+  return demoCatalog().flatMap((entry) => {
+    const runtimeId = entry.raw.id;
+    const known = findDemoEntry(runtimeId);
+    return known ? [toInquiredObject(DEMO_MODEL_ID, known.raw, known.box)] : [];
+  });
 }
 
 function toLabel(payload: LabelPayload, id: number): TextLabel {

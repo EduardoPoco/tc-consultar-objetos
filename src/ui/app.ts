@@ -3,6 +3,7 @@ import { applyFabrication, buildDataset, type FabricationDataset, type SavedMapp
 import { planColors, type ColorScale, type LegendStop } from "../domain/palette";
 import { clearDataset, loadDataset, loadMappings, saveDataset, saveMappings } from "../domain/fabricStore";
 import { buildLabelText } from "../domain/labels";
+import { searchObjects } from "../domain/search";
 import {
   columnsToItems,
   discoverItems,
@@ -68,6 +69,12 @@ interface UiState {
   legend: LegendStop[];
   tableSort: { index: number; direction: "asc" | "desc" } | null;
   tablePage: number;
+  searchCatalog: InquiredObject[] | null;
+  searchHits: InquiredObject[];
+  searchMessage: string;
+  searchLoading: boolean;
+  searchLoaded: number;
+  searchTotal: number;
 }
 
 const TABS: Array<{ id: TabId; label: string }> = [
@@ -112,6 +119,12 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
     legend: [],
     tableSort: null,
     tablePage: 0,
+    searchCatalog: null,
+    searchHits: [],
+    searchMessage: "",
+    searchLoading: false,
+    searchLoaded: 0,
+    searchTotal: 0,
   };
   ui.projectId = await host.projectId();
   ui.dataset = FEATURES.fabrico ? loadDataset(localStorage, ui.projectId) : null;
@@ -136,6 +149,7 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
   }
 
   root.innerHTML = shell(host);
+  let stopSearch = false;
   bind(root, host, ui);
   fillSettings(root, ui);
 
@@ -224,6 +238,71 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
       labeling = false;
       sync();
     }
+  }
+
+  async function onSearch(): Promise<void> {
+    const propertyKey = root.querySelector<HTMLSelectElement>("#pesquisa-propriedade")?.value ?? "";
+    const query = root.querySelector<HTMLInputElement>("#pesquisa-valor")?.value ?? "";
+    const contains = root.querySelector<HTMLInputElement>("#pesquisa-contem")?.checked ?? false;
+    if (!propertyKey) {
+      ui.searchMessage = "Escolha uma propriedade.";
+      sync();
+      return;
+    }
+    if (!query.trim()) {
+      ui.searchMessage = "Escreva o valor a procurar.";
+      sync();
+      return;
+    }
+    stopSearch = false;
+    ui.searchLoading = true;
+    ui.searchLoaded = 0;
+    ui.searchTotal = 0;
+    ui.searchMessage = "";
+    sync();
+    try {
+      const loaded = await host.loadCatalog((loadedCount, total) => {
+        ui.searchLoaded = loadedCount;
+        ui.searchTotal = total;
+        sync();
+      }, () => stopSearch);
+      ui.searchLoading = false;
+      if (!loaded.cancelled) ui.searchCatalog = loaded.objects;
+      if (loaded.cancelled) {
+        ui.searchHits = [];
+        ui.searchMessage = `Leitura cancelada. Foram lidas ${loaded.objects.length} peças.`;
+        sync();
+        return;
+      }
+      const item = sortItems(discoverItems(loaded.objects), "asc").find((candidate) => candidate.key === propertyKey);
+      if (!item) {
+        ui.searchHits = [];
+        ui.searchMessage = "Essa propriedade não existe no modelo.";
+        sync();
+        return;
+      }
+      ui.searchHits = searchObjects(loaded.objects, item, query, contains ? "contains" : "equal");
+      ui.searchMessage = ui.searchHits.length === 1 ? "1 peça encontrada." : `${ui.searchHits.length} peças encontradas.`;
+    } catch (error) {
+      ui.searchLoading = false;
+      ui.searchHits = [];
+      ui.searchMessage = error instanceof Error ? error.message : "Não foi possível pesquisar o modelo.";
+    }
+    sync();
+  }
+
+  async function onSelectFound(): Promise<void> {
+    if (ui.searchHits.length === 0) return;
+    await host.selectObjects(ui.searchHits.map((object) => ({ modelId: object.modelId, runtimeId: object.runtimeId })));
+    ui.feedback = `${plural(ui.searchHits.length, "peça selecionada no modelo", "peças selecionadas no modelo")}.`;
+    sync();
+  }
+
+  async function onIsolateFound(): Promise<void> {
+    if (ui.searchHits.length === 0) return;
+    await host.isolate(ui.searchHits, ui.settings.highlightColor);
+    ui.feedback = `${plural(ui.searchHits.length, "peça isolada", "peças isoladas")}.`;
+    sync();
   }
 
   async function onShowLabels(): Promise<void> {
@@ -354,6 +433,10 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
         return;
       }
       if (action === "show-labels") void onShowLabels();
+      if (action === "search-objects") void onSearch();
+      if (action === "cancel-search") stopSearch = true;
+      if (action === "select-found") void onSelectFound();
+      if (action === "isolate-found") void onIsolateFound();
       if (action === "clear-labels") void onClearLabels();
       if (action === "isolate") void onIsolate();
       if (action === "reset") void onReset();
@@ -609,6 +692,7 @@ function paint(root: HTMLElement, host: ViewerHost, state: UiState, showProgress
   paintSets(root, state);
   paintPieces(root, host);
   paintFooter(root, host.mode, snapshot);
+  paintSearch(root, state, objects);
   const feedback = root.querySelector("#feedback");
   if (feedback) feedback.textContent = state.feedback;
   const count = root.querySelector("#selection-count");
@@ -617,6 +701,34 @@ function paint(root: HTMLElement, host: ViewerHost, state: UiState, showProgress
       ? "Nenhum objeto na consulta"
       : `${plural(snapshot.objects.length, "objeto na consulta", "objetos na consulta")} · ${plural(state.checked.size, "propriedade marcada", "propriedades marcadas")}`;
   }
+}
+
+function paintSearch(root: HTMLElement, state: UiState, selected: InquiredObject[]): void {
+  const select = root.querySelector<HTMLSelectElement>("#pesquisa-propriedade");
+  const source = state.searchCatalog && state.searchCatalog.length > 0 ? state.searchCatalog : selected;
+  if (select && document.activeElement !== select) {
+    const items = sortItems(discoverItems(source), "asc");
+    const previous = select.value;
+    select.innerHTML = [`<option value="">Escolher propriedade</option>`]
+      .concat(items.map((item) => {
+        const label = item.setName ? `${item.setName} / ${item.name}` : item.name;
+        return `<option value="${escapeHtml(item.key)}">${escapeHtml(label)}</option>`;
+      })).join("");
+    if (items.some((item) => item.key === previous)) select.value = previous;
+  }
+  const progress = root.querySelector("#pesquisa-progresso");
+  if (progress) {
+    setHtml(progress, state.searchLoading
+      ? `<p class="progress" data-testid="progresso-pesquisa">A ler o modelo… ${state.searchLoaded} de ${state.searchTotal}</p>
+        <button type="button" data-action="cancel-search" data-testid="cancelar-pesquisa">Cancelar</button>`
+      : "");
+  }
+  const result = root.querySelector("#resultado-pesquisa");
+  if (result) result.textContent = state.searchMessage;
+  const selectFound = root.querySelector<HTMLButtonElement>("#pesquisa-pecas [data-action='select-found']");
+  const isolateFound = root.querySelector<HTMLButtonElement>("#pesquisa-pecas [data-action='isolate-found']");
+  if (selectFound) selectFound.disabled = state.searchHits.length === 0 || state.searchLoading;
+  if (isolateFound) isolateFound.disabled = state.searchHits.length === 0 || state.searchLoading;
 }
 
 function paintColorControls(root: HTMLElement, state: UiState): void {
@@ -998,6 +1110,23 @@ function shell(host: ViewerHost): string {
       <div id="progresso"></div>
       <div id="panel-consultar" role="tabpanel" aria-labelledby="tab-consultar">
         <p id="source-line" class="source" data-testid="origem"></p>
+        <div class="piece-search" data-testid="pesquisa-pecas">
+          <p class="hint">Procurar peças em todo o modelo pelo valor de uma propriedade.</p>
+          <label class="field">Propriedade
+            <select id="pesquisa-propriedade" data-testid="pesquisa-propriedade"></select>
+          </label>
+          <label class="field">Valor
+            <input id="pesquisa-valor" data-testid="pesquisa-valor" type="text" />
+          </label>
+          <label class="check standalone"><input id="pesquisa-contem" data-testid="pesquisa-contem" type="checkbox" /> O valor contém o texto</label>
+          <div class="actions">
+            <button type="button" class="primary" data-action="search-objects" data-testid="pesquisar-pecas">Pesquisar</button>
+            <button type="button" data-action="select-found" data-testid="selecionar-encontradas">Selecionar no modelo</button>
+            <button type="button" data-action="isolate-found" data-testid="isolar-encontradas">Isolar</button>
+          </div>
+          <div id="pesquisa-progresso"></div>
+          <p id="resultado-pesquisa" class="feedback" data-testid="resultado-pesquisa"></p>
+        </div>
         <div class="toolbar">
           <span id="selection-count" data-testid="contagem"></span>
           <span class="spacer"></span>

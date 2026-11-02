@@ -24,7 +24,11 @@ Por omissão a lista usa as propriedades encontradas nos objetos. Em Definiçõe
 
 ### 2. Seleção e propriedades
 
-No modo de demonstração, clique na planta; Ctrl+clique adiciona à seleção. Com um único objeto, o valor de cada propriedade aparece à direita. O grupo **Produto** (nome, descrição, tipo e classe) fica no topo: são os atributos que o Trimble Connect mostra fora dos conjuntos de propriedades. Um nome repetido noutro grupo continua a ser outra linha.
+No modo de demonstração, clique na planta; Ctrl+clique adiciona à seleção. Com um único objeto, o valor de cada propriedade aparece à direita.
+
+**Pesquisar** no separador Consultar procura o valor numa propriedade, em todo o modelo e não só na seleção. A comparação ignora maiúsculas e espaços nas pontas. **O valor contém o texto** alarga a procura. **Selecionar no modelo** marca as peças encontradas; **Isolar** esconde as outras. A leitura faz-se em lotes, com progresso e Cancelar, e fica em cache para a pesquisa seguinte. O grupo **Produto** (nome, descrição, tipo e classe) fica no topo: são os atributos que o Trimble Connect mostra fora dos conjuntos de propriedades. Um nome repetido noutro grupo continua a ser outra linha.
+
+![Pesquisa de HEA200 no perfil, com duas peças encontradas](docs/imagens/16-pesquisa-pecas.png)
 
 ![Viga V1 selecionada, com perfil HEA200, grau S275JR, comprimento e peso](docs/imagens/02-selecao-com-propriedades.png)
 
