@@ -1,9 +1,10 @@
 import { connect } from "trimble-connect-workspace-api";
 import { hexToRgba } from "../domain/color";
-import { labelAnchor } from "../domain/labels";
+import { markupEnds, placementSummary } from "../domain/labels";
 import { boxFromPosition, flattenSelection, toInquiredObject } from "../domain/properties";
 import { PROPERTY_BATCH, type Box3, type LabelPayload, type SelectionGroup, type TextLabel, type Vector3 } from "../domain/types";
-import { addMarkupBatch, removeMarkupBatches } from "./labelBatches";
+import { noteMarkup } from "./diagnostics";
+import { placeTextMarkups, removeMarkupBatches } from "./labelBatches";
 import { createSelectionGate } from "./selectionGate";
 import type { WorkspaceConnection } from "./workspaceConnection";
 import type { ColumnSetResult, HostSnapshot, ViewerHost } from "./types";
@@ -52,7 +53,6 @@ interface MarkupPick {
   positionZ: number;
   modelId?: string;
   objectId?: number;
-  type?: "point";
 }
 
 interface SelectionEvent {
@@ -217,16 +217,25 @@ export async function createTrimbleHost(connection?: WorkspaceConnection): Promi
       };
       const placed: LabelPayload[] = [];
       const placedIds: number[] = [];
-      const publish = (labeling: boolean, cancelled: boolean) => {
+      let created = 0;
+      let realBoxes = 0;
+      let boxError = "";
+      let sample: Box3 | null = null;
+      let previous: number[] = [];
+      const describe = () => {
+        const summary = placementSummary(sample, realBoxes, payloads.length);
+        return boxError ? `${summary} getObjectBoundingBoxes: ${boxError}` : summary;
+      };
+      const publish = (labeling: boolean, cancelled: boolean, error = "", keepPrevious = true) => {
         if (job !== labelJob) return;
         labels = placed.map((payload, index) => ({
-          id: placedIds[index] ?? index + 1,
+          id: placedIds[index] ?? 0,
           modelId: payload.modelId,
           runtimeId: payload.runtimeId,
           text: payload.text,
           color: payload.color,
         }));
-        labelIds = placedIds.slice();
+        labelIds = keepPrevious ? [...new Set([...previous, ...placedIds])] : placedIds.slice();
         snapshot = {
           ...snapshot,
           labels,
@@ -234,17 +243,27 @@ export async function createTrimbleHost(connection?: WorkspaceConnection): Promi
           labelsPlaced: placed.length,
           labelsTotal: payloads.length,
           labelsCancelled: cancelled,
-          error: "",
+          error,
         };
         notify();
       };
+      const remember = (error: string, detail: string) => {
+        noteMarkup(created, error, detail);
+      };
       try {
-        const previous = labelIds.slice();
-        labelIds = [];
-        if (previous.length > 0) await removeMarkupBatches(api.markup, previous, PROPERTY_BATCH);
+        previous = labelIds.slice();
+        remember("nenhum", payloads.length === 0
+          ? "O botão foi premido, mas não havia texto para etiquetar."
+          : `A colocar ${payloads.length} etiquetas…`);
         if (stop() === "abort") return;
-        if (payloads.length === 0 || stop() === "cancel") {
-          publish(false, stop() === "cancel");
+        if (payloads.length === 0) {
+          if (previous.length > 0) await removeMarkupBatches(api.markup, previous, PROPERTY_BATCH);
+          previous = [];
+          publish(false, false, "", false);
+          return;
+        }
+        if (stop() === "cancel") {
+          publish(false, true);
           return;
         }
         publish(true, false);
@@ -256,42 +275,66 @@ export async function createTrimbleHost(connection?: WorkspaceConnection): Promi
           }
           if (why === "cancel") {
             publish(false, true);
+            remember("nenhum", `Colocação cancelada. ${describe()}`);
             return;
           }
-          const chunk = await attachBoxes(api, payloads.slice(start, start + PROPERTY_BATCH));
+          const attached = await attachBoxes(api, payloads.slice(start, start + PROPERTY_BATCH));
+          realBoxes += attached.realBoxes;
+          if (attached.boxError) boxError = attached.boxError;
+          const withBox = attached.payloads.find((payload) => payload.box);
+          if (withBox?.box) sample = withBox.box;
           if (stop() === "abort") {
             await removeMarkupBatches(api.markup, placedIds, PROPERTY_BATCH);
             return;
           }
           if (stop() === "cancel") {
             publish(false, true);
+            remember("nenhum", `Colocação cancelada. ${describe()}`);
             return;
           }
-          const ids = await addMarkupBatch(api.markup, chunk, toMarkup);
+          const chunk = attached.payloads;
+          const result = await placeTextMarkups(
+            api.markup,
+            chunk,
+            (payload) => toMarkup(payload, false),
+            (payload) => toMarkup(payload, true),
+            [...previous, ...placedIds],
+          );
           if (job !== labelJob) {
-            await removeMarkupBatches(api.markup, [...placedIds, ...ids], PROPERTY_BATCH);
+            await removeMarkupBatches(api.markup, [...placedIds, ...result.ids], PROPERTY_BATCH);
             return;
           }
+          created += result.accepted;
           placed.push(...chunk);
-          placedIds.push(...ids);
+          placedIds.push(...result.ids);
           publish(true, false);
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
-        publish(false, labelCancel && placed.length < payloads.length);
+        if (previous.length > 0) await removeMarkupBatches(api.markup, previous, PROPERTY_BATCH);
+        const detail = `Criadas ${created} de ${payloads.length}. ${describe()}`;
+        const missingIds = created > 0 && placedIds.length === 0;
+        const warning = missingIds
+          ? `O visualizador aceitou ${created} etiquetas mas não devolveu identificadores. Se não aparecerem no modelo, envie esta mensagem. ${detail}`
+          : "";
+        remember(warning || "nenhum", detail);
+        publish(false, labelCancel && placed.length < payloads.length, warning, false);
       } catch (error) {
         if (job !== labelJob) {
           await removeMarkupBatches(api.markup, placedIds, PROPERTY_BATCH);
           return;
         }
-        const message = error instanceof Error ? error.message : "Não foi possível criar as etiquetas.";
+        const reason = error instanceof Error ? error.message : "Não foi possível criar as etiquetas.";
+        const detail = describe();
+        const message = `${reason} ${detail}`;
+        remember(message, detail);
         labels = placed.map((payload, index) => ({
-          id: placedIds[index] ?? index + 1,
+          id: placedIds[index] ?? 0,
           modelId: payload.modelId,
           runtimeId: payload.runtimeId,
           text: payload.text,
           color: payload.color,
         }));
-        labelIds = placedIds.slice();
+        labelIds = [...new Set([...previous, ...placedIds])];
         snapshot = {
           ...snapshot,
           labels,
@@ -301,7 +344,7 @@ export async function createTrimbleHost(connection?: WorkspaceConnection): Promi
           error: message,
         };
         notify();
-        throw error;
+        throw new Error(message);
       } finally {
         if (activeLabelJob === job) labelingActive = false;
       }
@@ -322,6 +365,7 @@ export async function createTrimbleHost(connection?: WorkspaceConnection): Promi
         labelsCancelled: false,
       };
       notify();
+      noteMarkup(0, "nenhum", ids.length > 0 ? "Etiquetas removidas desta extensão." : "Não havia etiquetas desta extensão para remover.");
       if (ids.length > 0) await removeMarkupBatches(api.markup, ids, PROPERTY_BATCH);
     },
     async isolate(objects, color) {
@@ -487,28 +531,43 @@ async function loadObjects(
   return { objects, cancelled: false };
 }
 
-async function attachBoxes(api: WorkspaceLike, payloads: LabelPayload[]): Promise<LabelPayload[]> {
-  const missing = payloads.filter((payload) => !payload.box);
-  if (missing.length === 0) return payloads;
+async function attachBoxes(
+  api: WorkspaceLike,
+  payloads: LabelPayload[],
+): Promise<{ payloads: LabelPayload[]; realBoxes: number; boxError: string }> {
   const boxes = new Map<string, Box3>();
   const byModel = new Map<string, number[]>();
-  for (const payload of missing) {
+  for (const payload of payloads) {
     const ids = byModel.get(payload.modelId) ?? [];
     ids.push(payload.runtimeId);
     byModel.set(payload.modelId, ids);
   }
+  const problems: string[] = [];
   for (const [modelId, ids] of byModel) {
     try {
       const found = await api.viewer.getObjectBoundingBoxes(modelId, ids);
-      for (const box of found) boxes.set(`${modelId}:${box.id}`, box.boundingBox);
-    } catch {
-      // Labels still use the object position when the box is unavailable.
+      for (const box of found ?? []) {
+        if (!box?.boundingBox?.min || !box.boundingBox.max || !Number.isFinite(box.id)) continue;
+        boxes.set(`${modelId}:${box.id}`, {
+          min: { x: box.boundingBox.min.x, y: box.boundingBox.min.y, z: box.boundingBox.min.z },
+          max: { x: box.boundingBox.max.x, y: box.boundingBox.max.y, z: box.boundingBox.max.z },
+        });
+      }
+    } catch (error) {
+      problems.push(error instanceof Error ? error.message : "getObjectBoundingBoxes falhou.");
     }
   }
-  return payloads.map((payload) => ({
-    ...payload,
-    box: payload.box ?? boxes.get(`${payload.modelId}:${payload.runtimeId}`) ?? null,
-  }));
+  let realBoxes = 0;
+  const next = payloads.map((payload) => {
+    const real = boxes.get(`${payload.modelId}:${payload.runtimeId}`);
+    if (real) {
+      realBoxes += 1;
+      return { ...payload, box: real };
+    }
+    const box = payload.box ?? (payload.position ? boxFromPosition(payload.position) : null);
+    return { ...payload, box };
+  });
+  return { payloads: next, realBoxes, boxError: problems[0] ?? "" };
 }
 
 function groupIds(objects: Array<{ modelId: string; runtimeId: number }>): Array<[string, number[]]> {
@@ -521,25 +580,23 @@ function groupIds(objects: Array<{ modelId: string; runtimeId: number }>): Array
   return [...groups];
 }
 
-function toMarkup(payload: LabelPayload) {
+function toMarkup(payload: LabelPayload, bind: boolean) {
   const box = payload.box ?? (payload.position ? boxFromPosition(payload.position) : {
     min: { x: 0, y: 0, z: 0 },
     max: { x: 0.2, y: 0.2, z: 0.2 },
   });
-  const anchor = labelAnchor(box);
-  const pick = (point: Vector3): MarkupPick => ({
-    positionX: point.x,
-    positionY: point.y,
-    positionZ: point.z,
-    modelId: payload.modelId,
-    objectId: payload.runtimeId,
-    type: "point",
+  const ends = markupEnds(box, bind ? { modelId: payload.modelId, objectId: payload.runtimeId } : undefined);
+  const pick = (point: { positionX: number; positionY: number; positionZ: number; modelId?: string; objectId?: number }): MarkupPick => ({
+    positionX: point.positionX,
+    positionY: point.positionY,
+    positionZ: point.positionZ,
+    ...(point.modelId ? { modelId: point.modelId, objectId: point.objectId } : {}),
   });
   return {
     text: payload.text,
     color: hexToRgba(payload.color),
-    start: pick(anchor.start),
-    end: pick(anchor.end),
+    start: pick(ends.start),
+    end: pick(ends.end),
   };
 }
 

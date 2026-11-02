@@ -224,7 +224,9 @@ export async function startApp(root: HTMLElement, host: ViewerHost): Promise<voi
         await host.showLabels(payloads);
         if (!ui.labelsActive) break;
         const placed = host.snapshot();
-        if (payloads.length === 0) {
+        if (placed.error) {
+          ui.feedback = placed.error;
+        } else if (payloads.length === 0) {
           ui.feedback = "Marque propriedades e selecione objetos para criar etiquetas.";
         } else if (placed.labelsCancelled) {
           ui.feedback = `Colocação cancelada. Foram colocadas etiquetas em ${plural(placed.labels.length, "objeto", "objetos")} de ${payloads.length}.`;
@@ -693,6 +695,7 @@ function paint(root: HTMLElement, host: ViewerHost, state: UiState, showProgress
   paintPieces(root, host);
   paintFooter(root, host.mode, snapshot);
   paintSearch(root, state, objects);
+  paintDiagnostics(root);
   const feedback = root.querySelector("#feedback");
   if (feedback) feedback.textContent = state.feedback;
   const count = root.querySelector("#selection-count");
@@ -767,6 +770,16 @@ function paintTabs(root: HTMLElement, tab: TabId): void {
     button?.classList.toggle("is-active", selected);
     if (panel) panel.hidden = !selected;
   }
+}
+
+function paintDiagnostics(root: HTMLElement): void {
+  const node = root.querySelector<HTMLElement>("[data-testid=diagnostico]");
+  if (!node) return;
+  const holder = document.createElement("div");
+  holder.innerHTML = diagnosticsHtml();
+  const fresh = holder.firstElementChild;
+  if (!fresh || node.innerHTML === fresh.innerHTML) return;
+  node.innerHTML = fresh.innerHTML;
 }
 
 function paintBanner(root: HTMLElement, error: string, failed: boolean): void {

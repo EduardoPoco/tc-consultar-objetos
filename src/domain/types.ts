@@ -151,4 +151,4 @@ export const EXAMPLE_SET: NamedPropertySet = {
 
 export const APP_NAME = "POÇO";
 export const APP_SUBTITLE = "Consultar objetos";
-export const APP_VERSION = "1.2.1";
+export const APP_VERSION = "1.2.2";

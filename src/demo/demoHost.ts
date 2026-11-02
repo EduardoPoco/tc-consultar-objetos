@@ -1,5 +1,6 @@
 import { flattenSelection, toInquiredObject } from "../domain/properties";
 import type { LabelPayload, TextLabel } from "../domain/types";
+import { noteMarkup } from "../host/diagnostics";
 import { createSelectionGate } from "../host/selectionGate";
 import type { DemoHost, HostSnapshot } from "../host/types";
 import { DEMO_COLUMN_SETS, DEMO_MODEL_ID, demoCatalog, demoPieces, findDemoEntry } from "./fixtures";
@@ -80,10 +81,12 @@ export function createDemoHost(options: DemoHostOptions): DemoHost {
     async showLabels(payloads) {
       labels = payloads.map((payload) => toLabel(payload, nextLabelId++));
       error = "";
+      noteMarkup(labels.length, "nenhum", "Demonstração: as etiquetas são desenhadas no painel, sem markup.addTextMarkup.");
       notify();
     },
     async clearLabels() {
       labels = [];
+      noteMarkup(0, "nenhum", "Demonstração: etiquetas removidas.");
       notify();
     },
     async isolate(objects, color) {

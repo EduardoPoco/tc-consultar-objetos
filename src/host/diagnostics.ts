@@ -22,6 +22,9 @@ const empty: StartupDiagnostics = {
 };
 
 let current = empty;
+let markupCreated = 0;
+let markupError = "nenhum";
+let markupDetail = "Ainda não foi pedida.";
 
 export function setDiagnostics(value: StartupDiagnostics): void {
   current = value;
@@ -31,8 +34,19 @@ export function getDiagnostics(): StartupDiagnostics {
   return current;
 }
 
+export function noteMarkup(created: number, error: string, detail: string): void {
+  markupCreated = created;
+  markupError = error.trim() || "nenhum";
+  markupDetail = detail.trim() || "Ainda não foi pedida.";
+}
+
+export function markupStatus(): { created: number; error: string; detail: string } {
+  return { created: markupCreated, error: markupError, detail: markupDetail };
+}
+
 export function diagnosticsHtml(): string {
   const info = getDiagnostics();
+  const markup = markupStatus();
   const errors = info.errors.length === 0
     ? "nenhum"
     : info.errors.map((error) => escapeHtml(error)).join("<br />");
@@ -46,6 +60,9 @@ export function diagnosticsHtml(): string {
       <div><dt>Painel do visualizador</dt><dd>${escapeHtml(info.viewerProbe)}</dd></div>
       <div><dt>Menu do projeto</dt><dd>${escapeHtml(info.menu)}</dd></div>
       <div><dt>Erros</dt><dd>${errors}</dd></div>
+      <div><dt>Etiquetas criadas</dt><dd>${markup.created}</dd></div>
+      <div><dt>Último erro das etiquetas</dt><dd>${escapeHtml(markup.error)}</dd></div>
+      <div><dt>Última colocação</dt><dd>${escapeHtml(markup.detail)}</dd></div>
     </dl>
   </div>`;
 }

@@ -1,6 +1,13 @@
+import { withTimeout } from "./hostChoice";
+
 export interface MarkupRef {
   id?: number;
   text?: string;
+}
+
+export interface MarkupBatchResult {
+  ids: number[];
+  accepted: number;
 }
 
 export interface LabelMarkupApi {
@@ -12,9 +19,9 @@ export interface LabelMarkupApi {
 const idsOf = (markups: MarkupRef[]): number[] =>
   markups.flatMap((markup) => (typeof markup.id === "number" ? [markup.id] : []));
 
-/** Removes markups in chunks so a large clear does not freeze the viewer. */
+/** Removes markups in chunks. An empty list is never sent: `undefined` would delete every markup in the viewer. */
 export async function removeMarkupBatches(api: Pick<LabelMarkupApi, "removeMarkups">, ids: number[], batchSize: number): Promise<void> {
-  const unique = [...new Set(ids)];
+  const unique = [...new Set(ids)].filter((id) => Number.isFinite(id));
   for (let start = 0; start < unique.length; start += batchSize) {
     const chunk = unique.slice(start, start + batchSize);
     if (chunk.length === 0) continue;
@@ -24,9 +31,9 @@ export async function removeMarkupBatches(api: Pick<LabelMarkupApi, "removeMarku
 }
 
 /**
- * Creates one batch of text markups and returns every new id.
- * When the viewer omits ids, the new markups are taken from getTextMarkups
- * by comparing the ids that existed before the call and matching the text.
+ * Creates one batch and returns the ids the viewer actually assigned.
+ * The list of existing markups is read only after the create call, and only
+ * when the response omitted ids. A hung getTextMarkups must not block the create.
  */
 export async function addMarkupBatch<T extends { text: string }, M extends { text?: string }>(
   api: {
@@ -35,40 +42,73 @@ export async function addMarkupBatch<T extends { text: string }, M extends { tex
   },
   chunk: T[],
   toMarkup: (item: T) => M,
-): Promise<number[]> {
-  if (chunk.length === 0) return [];
-  let before: Set<number> | null = null;
-  try {
-    before = new Set(idsOf(await api.getTextMarkups()));
-  } catch {
-    before = null;
-  }
+  lookupMs = 4000,
+  occupied: Iterable<number> = [],
+): Promise<MarkupBatchResult> {
+  if (chunk.length === 0) return { ids: [], accepted: 0 };
   const created = await api.addTextMarkup(chunk.map(toMarkup));
-  const fromResponse = idsOf(created);
-  if (fromResponse.length >= chunk.length || before === null) return fromResponse.slice(0, chunk.length);
+  const list = Array.isArray(created) ? created : [];
+  const fromResponse = idsOf(list);
+  if (fromResponse.length >= chunk.length || list.length === 0) {
+    return { ids: fromResponse.slice(0, chunk.length), accepted: list.length };
+  }
 
   let after: MarkupRef[] = [];
   try {
-    after = await api.getTextMarkups();
+    after = await withTimeout(api.getTextMarkups(), lookupMs);
   } catch {
-    return fromResponse;
+    return { ids: fromResponse, accepted: list.length };
   }
+  const known = new Set<number>([...fromResponse, ...occupied]);
   const needed = new Map<string, number>();
   for (const item of chunk) needed.set(item.text, (needed.get(item.text) ?? 0) + 1);
-  for (const markup of created) {
+  for (const markup of list) {
     if (typeof markup.id !== "number" || typeof markup.text !== "string") continue;
     const left = needed.get(markup.text) ?? 0;
     if (left > 0) needed.set(markup.text, left - 1);
   }
   const extra: number[] = [];
-  for (const markup of after) {
-    if (typeof markup.id !== "number" || before.has(markup.id) || fromResponse.includes(markup.id)) continue;
+  const ranked = [...after].sort((left, right) => (right.id ?? 0) - (left.id ?? 0));
+  for (const markup of ranked) {
+    if (typeof markup.id !== "number" || known.has(markup.id)) continue;
     const text = markup.text ?? "";
     const left = needed.get(text) ?? 0;
     if (left <= 0) continue;
     needed.set(text, left - 1);
+    known.add(markup.id);
     extra.push(markup.id);
     if (fromResponse.length + extra.length >= chunk.length) break;
   }
-  return [...fromResponse, ...extra];
+  return { ids: [...fromResponse, ...extra].sort((left, right) => left - right), accepted: list.length };
+}
+
+const EMPTY_MARKUPS = "O visualizador não criou etiquetas (addTextMarkup devolveu uma lista vazia).";
+
+/**
+ * Sends the documented TextMarkup (positionX/Y/Z in mm, text, color) first.
+ * If that call rejects or returns nothing, repeats the same chunk bound to the
+ * object runtime id. A rejection is returned to the caller; it is not ignored.
+ */
+export async function placeTextMarkups<T extends { text: string }, M extends { text?: string }>(
+  api: {
+    addTextMarkup(markups: M[]): Promise<MarkupRef[]>;
+    getTextMarkups(): Promise<MarkupRef[]>;
+  },
+  chunk: T[],
+  toWorld: (item: T) => M,
+  toBound: (item: T) => M,
+  occupied: Iterable<number> = [],
+): Promise<MarkupBatchResult> {
+  if (chunk.length === 0) return { ids: [], accepted: 0 };
+  const failures: string[] = [];
+  for (const toMarkup of [toWorld, toBound]) {
+    try {
+      const result = await addMarkupBatch(api, chunk, toMarkup, 4000, occupied);
+      if (result.accepted > 0) return result;
+    } catch (error) {
+      failures.push(error instanceof Error ? error.message : "addTextMarkup falhou.");
+    }
+  }
+  const detail = failures.filter(Boolean).join(" ");
+  throw new Error(detail ? `${detail} ${EMPTY_MARKUPS}` : EMPTY_MARKUPS);
 }

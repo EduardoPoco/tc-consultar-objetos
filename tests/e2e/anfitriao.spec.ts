@@ -12,7 +12,10 @@ test("acerca mostra o contexto detetado", async ({ page }) => {
   await page.goto("/?contexto=3dviewer");
   await page.getByRole("tab", { name: "Acerca" }).click();
   await expect(page.getByTestId("diagnostico")).toContainText("3dviewer");
-  await expect(page.getByTestId("diagnostico")).toContainText("1.2.1");
+  await expect(page.getByTestId("diagnostico")).toContainText("1.2.2");
+  await expect(page.getByTestId("diagnostico")).toContainText("Etiquetas criadas");
+  await expect(page.getByTestId("diagnostico")).toContainText("Último erro das etiquetas");
+  await expect(page.getByTestId("diagnostico")).toContainText("Ainda não foi pedida");
   await expect(page.getByTestId("diagnostico")).toContainText("0.3.38");
 });
 

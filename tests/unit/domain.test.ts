@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { hexToRgba } from "../../src/domain/color";
 import { toCsv } from "../../src/domain/csv";
 import { formatNumberCsv, formatNumberPt, formatValue, normalizeSearch } from "../../src/domain/format";
-import { boxExtent, buildLabelText, labelAnchor, toMillimeters } from "../../src/domain/labels";
+import { boxExtent, buildLabelText, labelAnchor, markupEnds, markupScale, placementSummary, toMillimeters } from "../../src/domain/labels";
 import {
   capSelection,
   columnsToItems,
@@ -204,6 +204,39 @@ describe("etiquetas", () => {
   it("não volta a escalar caixas que já estão em milímetros", () => {
     const box = { min: { x: 0, y: 0, z: 0 }, max: { x: 6000, y: 200, z: 3200 } };
     expect(toMillimeters(box).max.x).toBe(6000);
+  });
+
+  it("não escala uma posição já em milímetros só porque a caixa sintética é pequena", () => {
+    const box = { min: { x: 12499.85, y: -0.15, z: 3000 }, max: { x: 12500.15, y: 0.15, z: 3000.3 } };
+    expect(boxExtent(box)).toBeLessThan(1);
+    expect(markupScale(box)).toBe(1);
+    expect(labelAnchor(box).start.x).toBeCloseTo(12500.15);
+  });
+
+  it("não escala uma viga modelada entre 10000 e 16000 mm", () => {
+    const box = { min: { x: 10000, y: 0, z: 0 }, max: { x: 16000, y: 200, z: 400 } };
+    expect(markupScale(box)).toBe(1);
+    expect(labelAnchor(box).start.x).toBe(16000);
+  });
+
+  it("mantém a escala de metros numa peça longe da origem, mas ainda em metros", () => {
+    const box = { min: { x: 500, y: 0, z: 0 }, max: { x: 506, y: 0.3, z: 0.4 } };
+    expect(markupScale(box)).toBe(1000);
+    expect(labelAnchor(box).start.x).toBe(506000);
+  });
+
+  it("envia a marcação em milímetros, sem o tipo ponto, e só liga o objeto quando pedido", () => {
+    const box = { min: { x: 0, y: 0, z: 0 }, max: { x: 6, y: 0.2, z: 3.2 } };
+    const world = markupEnds(box);
+    expect(world.start).toEqual({ positionX: 6000, positionY: 100, positionZ: 3200 });
+    expect(world.end).toEqual({ positionX: 6600, positionY: 100, positionZ: 3600 });
+    expect(world.start).not.toHaveProperty("type");
+    expect(world.start).not.toHaveProperty("modelId");
+    const bound = markupEnds(box, { modelId: "modelo", objectId: 42 });
+    expect(bound.start.modelId).toBe("modelo");
+    expect(bound.start.objectId).toBe(42);
+    expect(placementSummary(box, 1, 2)).toContain("Escala ×1000");
+    expect(placementSummary(box, 1, 2)).toContain("Caixas do visualizador: 1 de 2");
   });
 });
 

@@ -133,7 +133,7 @@ O modo de demonstração cobre o painel, a seleção, as etiquetas, a tabela, o 
 - o relatório interno em HTTP, a partir de um computador na rede da empresa;
 - o evento `viewer.onSelectionChanged` e `viewer.getObjectProperties` com um modelo IFC ou Tekla;
 - os conjuntos de colunas reais da Tabela de dados (`API.dataTable`); se a API recusar, a extensão passa a usar as propriedades dos objetos;
-- a posição das etiquetas (`markup.addTextMarkup`). As caixas delimitadoras vêm em metros, como a posição do objeto, e a marcação pede milímetros. Uma caixa maior que 300 na sua maior dimensão é tratada como se já estivesse em milímetros. A folga da etiqueta é de 600 mm em X e 400 mm em Z, a partir do canto superior da caixa. Convém confirmar num modelo conhecido se o texto fica mesmo ao lado da peça;
+- a posição das etiquetas (`markup.addTextMarkup`). A caixa vem de `viewer.getObjectBoundingBoxes` (a posição do objeto, em metros, só serve de recurso). A marcação pede milímetros: uma caixa maior que 300, uma coordenada acima de 2000, ou uma caixa minúscula longe da origem fica como está; o resto passa de metros para milímetros. A folga é de 600 mm em X e 400 mm em Z. O separador **Acerca** mostra o último erro e quantas etiquetas foram criadas;
 - `isolateEntities` e `setObjectState` (cor e `visible: "reset"` / `color: "reset"`). **Repor** não mexe na câmara;
 - guardar uma Vista e voltar a abri-la com as etiquetas;
 - o comportamento do iframe da extensão (armazenamento local no domínio `github.io`).
@@ -170,4 +170,4 @@ Nas definições do repositório, **Settings → Pages → Build and deployment 
 
 ## Versão
 
-1.2.1
+1.2.2
