@@ -15,7 +15,7 @@ test("mostra a informação do projeto de demonstração", async ({ page }) => {
 
 test("abre o relatório filtrado pela obra do nome do projeto", async ({ page }) => {
   await page.goto("/?projeto=1");
-  await page.getByRole("button", { name: "Relatório" }).click();
+  await page.getByRole("button", { name: "Relatório Produção" }).click();
   await expect(page.getByTestId("obra-detectada")).toContainText("3270");
   await expect(page.getByTestId("atalho-relatorio")).toHaveText("Relatório de produção — Obra 3270");
   await expect(page.getByTestId("atalho-relatorio")).toHaveAttribute("target", "_blank");
@@ -28,13 +28,13 @@ test("abre o relatório filtrado pela obra do nome do projeto", async ({ page })
 
 test("pede o número da obra quando o projeto não começa por OB", async ({ page }) => {
   await page.goto("/?projeto=1&nome=Armaz%C3%A9m%20norte");
-  await page.getByRole("button", { name: "Relatório" }).click();
+  await page.getByRole("button", { name: "Relatório Produção" }).click();
   await expect(page.getByTestId("obra-manual")).toBeVisible();
   await page.getByTestId("obra-manual").fill("3228");
   await page.getByTestId("guardar-obra").click();
   await expect(page.getByTestId("atalho-relatorio")).toHaveText("Relatório de produção — Obra 3228");
   await page.goto("/?projeto=1&nome=ob3228%20estrutura");
-  await page.getByRole("button", { name: "Relatório" }).click();
+  await page.getByRole("button", { name: "Relatório Produção" }).click();
   await expect(page.getByTestId("obra-detectada")).toContainText("3228");
 });
 

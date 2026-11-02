@@ -19,7 +19,7 @@ export function projectMenu(icon: string) {
       item("Projeto", "projeto"),
       ...(FEATURES.modelos ? [item("Modelos", "modelos")] : []),
       ...(FEATURES.ligacoes ? [item("Ligações", "ligacoes")] : []),
-      item("Relatório", "relatorio"),
+      item("Relatório Produção", "relatorio"),
       item("Como usar", "ajuda"),
     ],
   };

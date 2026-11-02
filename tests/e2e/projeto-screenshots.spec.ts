@@ -19,7 +19,7 @@ test("11 informação do projeto", async ({ page }) => {
 
 test("14 relatório de produção", async ({ page }) => {
   await page.goto("/?projeto=1");
-  await page.getByRole("button", { name: "Relatório" }).click();
+  await page.getByRole("button", { name: "Relatório Produção" }).click();
   await page.getByTestId("testar-relatorio").click();
   await expect(page.getByTestId("url-relatorio")).toContainText("NObra=3270");
   await shot(page, "14-relatorio-producao.png");

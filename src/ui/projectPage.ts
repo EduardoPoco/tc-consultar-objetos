@@ -20,7 +20,7 @@ const SECTION_DEFS = [
   { id: "projeto", label: "Projeto" },
   { id: "modelos", label: "Modelos" },
   { id: "ligacoes", label: "Ligações" },
-  { id: "relatorio", label: "Relatório" },
+  { id: "relatorio", label: "Relatório Produção" },
   { id: "ajuda", label: "Como usar" },
 ] as const;
 type SectionId = (typeof SECTION_DEFS)[number]["id"];
