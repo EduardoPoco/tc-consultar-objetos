@@ -88,7 +88,7 @@ O atalho chama-se **Relatório de produção — Obra 3270** e abre noutro separ
 
 O relatório está em HTTP na rede interna (`192.168.1.9`). A extensão está em HTTPS no GitHub Pages. O browser não deixa meter essa página dentro da extensão (conteúdo misto), por isso o atalho tem de abrir num separador novo e só funciona na rede da empresa.
 
-![Relatório de produção da obra 3270, com o endereço gerado e o parâmetro NObra](docs/imagens/14-relatorio-producao.png)
+![Relatório Produção da obra 3270, sem o formulário de endereço](docs/imagens/14-relatorio-producao.png)
 
 ### Como usar o visualizador
 
