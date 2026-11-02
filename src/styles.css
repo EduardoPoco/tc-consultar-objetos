@@ -51,7 +51,7 @@ button { cursor: pointer; }
 
 .project-header h1 { margin: 0; font-size: 20px; }
 .project-header p { margin: 2px 0 0; color: #c5d7e4; font-size: 13px; }
-.project-header img { border-radius: 8px; background: white; }
+.project-header img.brand { height: 44px; }
 
 .project-note, .project-main { padding: 12px 20px; }
 .project-note { margin: 0; color: var(--muted); font-size: 13px; }
@@ -145,7 +145,14 @@ button { cursor: pointer; }
 
 .panel-header h1 { margin: 0; font-size: 18px; font-weight: 650; letter-spacing: 0.01em; }
 .panel-header p { margin: 2px 0 0; font-size: 12px; color: #c5d7e4; }
-.panel-header img { border-radius: 8px; }
+.panel-header img.brand, .project-header img.brand {
+  width: auto;
+  height: 40px;
+  max-width: 168px;
+  background: white;
+  border-radius: 6px;
+  padding: 3px 8px;
+}
 
 .tabs {
   display: flex;

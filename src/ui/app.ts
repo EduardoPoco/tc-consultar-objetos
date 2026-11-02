@@ -979,12 +979,12 @@ function storedLocally(): string {
 }
 
 function shell(host: ViewerHost): string {
-  const icon = `${import.meta.env.BASE_URL}icon.svg`;
+  const icon = `${import.meta.env.BASE_URL}logo-poco.png`;
   const stage = isDemoHost(host) ? demoStage(host.pieces()) : "";
   return `<div class="shell" data-mode="${host.mode}">
     <section class="panel" data-testid="painel">
       <header class="panel-header">
-        <img src="${icon}" alt="" width="36" height="36" />
+        <img class="brand" src="${icon}" alt="POÇO" height="40" />
         <div>
           <h1>${APP_NAME}</h1>
           <p>${APP_SUBTITLE}</p>

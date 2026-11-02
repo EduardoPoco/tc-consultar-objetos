@@ -207,11 +207,11 @@ function pageHtml(state: {
   manualJob: string;
   reportMessage: string;
 }): string {
-  const icon = `${import.meta.env.BASE_URL}icon.svg`;
+  const icon = `${import.meta.env.BASE_URL}logo-poco.png`;
   const where = state.mode === "demo" ? "Modo de demonstração" : "Ligado ao Trimble Connect";
   return `<div class="project-page" data-mode="${state.mode}">
     <header class="project-header">
-      <img src="${icon}" alt="" width="40" height="40" />
+      <img class="brand" src="${icon}" alt="POÇO" height="44" />
       <div>
         <h1>${APP_NAME}</h1>
         <p>Página do projeto</p>
